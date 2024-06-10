@@ -1,5 +1,6 @@
 from collections import Counter
 from .geometry import Vector, Matrix
+from .ldrobj import LdrObj
 
 START_TOKENS = ["PLI BEGIN IGN", "BUFEXCHG STORE"]
 END_TOKENS = ["PLI END", "BUFEXCHG RETRIEVE"]

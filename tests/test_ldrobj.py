@@ -47,6 +47,11 @@ def test_ldrquad():
     o1 = LdrObj.from_str("4 1 0 2 4 5 6 7 5 9 8 0 2 3")
     assert isinstance(o1, LdrQuad)
     assert len(o1.points) == 4
+    o3 = o1.transformed(offset=(-1, 2, -3))
+    assert o3.points[0].almost_same_as((-1, 4, 1))
+    assert o3.points[1].almost_same_as((4, 8, 4))
+    assert o3.points[2].almost_same_as((4, 11, 5))
+    assert o3.points[3] == (-1, 4, 0)
 
 
 def test_ldrpart():
@@ -56,3 +61,5 @@ def test_ldrpart():
     o1 = LdrObj.from_str("1 4 10 -50 20 -1 0 0 0 -1 0 0 0 -1 This Submodel 1.ldr")
     assert isinstance(o1, LdrPart)
     assert o1.is_model
+    o3 = o1.transformed(offset=(-1, 2, -3))
+    assert o3.pos == (9, -48, 17)

@@ -63,7 +63,7 @@ class LdrObj:
             new_obj = LdrQuad()
         elif isinstance(self, LdrPart):
             new_obj = LdrPart()
-        for k, v in obj.__dict__.items():
+        for k, v in self.__dict__.items():
             new_obj.__dict__[k] = v
         return new_obj
 
@@ -162,11 +162,11 @@ class LdrObj:
 
     def translate(self, offset):
         for pt in self._pts:
-            pt += offset
+            pt += Vector(offset)
 
     def translated(self, offset):
         for pt in self._pts:
-            pt += offset
+            pt += Vector(offset)
         return self
 
     def transform(self, matrix):
@@ -174,25 +174,25 @@ class LdrObj:
             pt = pt * matrix
 
     def transformed(self, matrix=None, offset=None):
+        obj = self.copy()
         matrix = matrix if matrix is not None else Matrix.identity()
-        offset = offset if offset is not None else Vector(0, 0, 0)
+        offset = Vector(offset) if offset is not None else Vector(0, 0, 0)
         mt = matrix.transpose()
-        self.matrix = matrix * self.matrix
-        for pt in self._pts:
-            pt = pt * mt
-            pt = pt + offset
-        return self
+        obj.matrix = matrix * obj.matrix
+        obj._pts = [pt * mt for pt in obj.points]
+        obj._pts = [pt + offset for pt in obj.points]
+        return obj
 
     def set_rotation(self, angle):
         self.matrix = Matrix.euler_to_rot_matrix(angle)
 
     def rotated_by(self, angle):
+        obj = self.copy()
         rm = Matrix.euler_to_rot_matrix(angle)
         rt = rm.transpose()
-        self.matrix = rm * self.matrix
-        for pt in self.points:
-            pt = pt * rt
-        return self
+        obj.matrix = rm * obj.matrix
+        obj._pts = [pt * rt for pt in obj.points]
+        return obj
 
     @staticmethod
     def from_str(s):

@@ -23,7 +23,7 @@
 #
 # LdrColour class
 
-from slugify import slugify
+import slugify
 
 from .constants import *
 
@@ -107,7 +107,7 @@ class LdrColour:
 
     @property
     def name_slug(self):
-        return slugify("-".join(self.name.split()))
+        return slugify.slugify("-".join(self.name.split()))
 
     @property
     def hex_code(self):

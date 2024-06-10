@@ -208,9 +208,9 @@ class Matrix(object):
     @staticmethod
     def euler_to_rot_matrix(euler):
         """converts a 3D tuple of euler rotation angles into a rotation matrix"""
-        ax = Identity().rotate(euler[0], XAxis)
-        ay = Identity().rotate(euler[1], YAxis)
-        az = Identity().rotate(euler[2], ZAxis)
+        ax = Matrix.identity().rotate(euler[0], XAxis)
+        ay = Matrix.identity().rotate(euler[1], YAxis)
+        az = Matrix.identity().rotate(euler[2], ZAxis)
         rm = az * ay * ax
         rm = rm.transpose()
         return rm
@@ -360,7 +360,7 @@ class Vector(object):
 
     def almost_same_as(self, other, tolerance=1e-3):
         if not isinstance(other, Vector):
-            return False
+            other = Vector(other)
         if abs(self.x - other.x) > tolerance:
             return False
         if abs(self.y - other.y) > tolerance:
@@ -382,16 +382,6 @@ class Vector(object):
         if abs(self.z - other.z) <= tolerance:
             matched_axis += 1
         return matched_axis
-
-
-def euler_to_rot_matrix(euler):
-    """converts a 3D tuple of euler rotation angles into a rotation matrix"""
-    ax = Identity().rotate(euler[0], XAxis)
-    ay = Identity().rotate(euler[1], YAxis)
-    az = Identity().rotate(euler[2], ZAxis)
-    rm = az * ay * ax
-    rm = rm.transpose()
-    return rm
 
 
 def safe_vector(v):
