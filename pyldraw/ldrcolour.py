@@ -35,6 +35,8 @@ class LdrColour:
       LDraw colour code, Bricklink colour code, colour name,
       RGB floating point, RGB hex"""
 
+    __slots__ = ("_code", "r", "g", "b")
+
     def __init__(self, colour=None, red=None, green=None, blue=None, **kwargs):
         self._code = LDR_DEF_COLOUR
         self.r = 0.0

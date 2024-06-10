@@ -87,6 +87,8 @@ def _rows_multiplication(r1, r2):
 class Matrix(object):
     """a transformation matrix"""
 
+    __slots__ = "rows"
+
     def __init__(self, rows):
         self.rows = rows
 

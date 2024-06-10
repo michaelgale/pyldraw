@@ -30,6 +30,11 @@ from .ldrcolour import LdrColour
 
 
 class LdrObj:
+    """LdrObj is a container class for a line of parsed LDraw text.
+    It contains the raw text of the line as well as abstracted attributes
+    about the LDraw object's colour, geometry, and other data applicable
+    to its type."""
+
     def __init__(self, **kwargs):
         self._colour = LdrColour()
         self.matrix = Matrix.identity()
