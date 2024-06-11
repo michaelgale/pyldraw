@@ -1,8 +1,38 @@
-import inspect
-from rich import print
+#! /usr/bin/env python3
+#
+# Copyright (C) 2024  Michael Gale
+# This file is part of the pyldraw python module.
+# Permission is hereby granted, free of charge, to any person
+# obtaining a copy of this software and associated documentation
+# files (the "Software"), to deal in the Software without restriction,
+# including without limitation the rights to use, copy, modify, merge,
+# publish, distribute, sublicense, and/or sell copies of the Software,
+# and to permit persons to whom the Software is furnished to do so,
+# subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be
+# included in all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+# EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+# OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+# IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+# CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+# TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+# SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+#
+# LDraw file parsing, with supporting model and step object classes
+
 from collections import Counter
+import hashlib
+import inspect
+
+from rich import print
+
 from .geometry import Vector, Matrix
-from .ldrobj import LdrObj, LdrPart, LdrMeta
+from .ldrobj import LdrObj, LdrMeta
+from .ldrcolour import LdrColour
+from .constants import *
 
 
 def recursive_unwrap_model(
@@ -137,6 +167,7 @@ class BuildStep(LdrStep):
         self._model_objs = None
         # container for all objects added at this step
         self._step_objs = None
+        self._sha1_hash = None
 
     def __repr__(self) -> str:
         return "%s(%d step objects)" % (self.__class__.__name__, len(self.step_objs))
@@ -160,18 +191,48 @@ class BuildStep(LdrStep):
     def __str__(self):
         indent = " " * (self.level + 1)
         postdent = " " * (4 - self.level)
+        if self.start_of_model and self.end_of_model:
+            model_state = "="
+        elif self.start_of_model:
+            model_state = ">"
+        elif self.end_of_model:
+            model_state = "<"
+        else:
+            model_state = " "
         return (
-            "STEP: %3d%s level: %1d%s step-parts: %3d model-parts: %4d aspect: %s"
+            "STEP: %3d%s level: %1d%s%s step-parts: %3d model-parts: %4d aspect: %s "
             % (
                 self.idx,
                 indent,
                 self.level,
                 postdent,
+                model_state,
                 len(self.step_parts),
                 len(self.model_parts),
                 self.aspect,
             )
         )
+
+    @property
+    def sha1_hash(self):
+        """Computes the SHA1 hash of this step to detect if the model has changed
+        appearance.
+        This is useful for caching renders of each step since parts
+        can change sequence within a building step without requiring re-rendering.
+        The hash uses both the object content at this step as well as the appearance
+        of the total model.  This ensures early changes in the model build sequence
+        will propagate to all subsequent steps.  Furthermore, the aspect angle of the
+        model also will also change the hash."""
+        if self._sha1_hash is None:
+            shash = hashlib.sha1()
+            shash.update(bytes(str(self.aspect), encoding="utf8"))
+            objs = [str(o) for o in self.objs]
+            objs.extend([str(o) for o in self.model_parts])
+            objs = sorted(objs)
+            for o in objs:
+                shash.update(bytes(o, encoding="utf8"))
+            self._sha1_hash = shash.hexdigest()
+        return self._sha1_hash
 
     def unwrap(self, sub_models, model_objs=None):
         """Unwraps any sub-model references in this step into parts translated
@@ -220,7 +281,9 @@ class BuildStep(LdrStep):
             attr = inspect.currentframe().f_back.f_code.co_name
         for o in self.iter_meta_objs():
             if attr in dir(o):
-                return getattr(o, attr)
+                v = getattr(o, attr)
+                if v:
+                    return v
         return None
 
     @property
@@ -233,6 +296,14 @@ class BuildStep(LdrStep):
 
     @property
     def rotation_end(self):
+        return self.step_has_meta_command()
+
+    @property
+    def start_of_model(self):
+        return self.step_has_meta_command()
+
+    @property
+    def end_of_model(self):
         return self.step_has_meta_command()
 
 
@@ -319,8 +390,15 @@ class LdrModel:
             if obj is not None:
                 objs.append(obj)
                 if obj.is_step_delimiter:
-                    steps.append(LdrStep(objs))
+                    if len(objs) > 0:
+                        steps.append(LdrStep(objs))
                     objs = []
+        if len(objs) > 0:
+            if len(steps) > 0:
+                steps[-1].objs.extend(objs)
+            else:
+                steps.append(LdrStep(objs))
+
         if name is not None:
             name = name
         else:
@@ -345,7 +423,6 @@ class UnwrapCtx:
         self.model_objs = []
         self.aspect = Vector(0, 0, 0)
         self.path = None
-        self.last_path = None
         for k, v in kwargs.items():
             if k in self.__dict__:
                 self.__dict__[k] = v
@@ -394,7 +471,7 @@ class LdrFile:
             else:
                 root = "0 FILE " + models[1]
                 for model in models[2:]:
-                    model_name = model.splitlines()[0].lower().strip()
+                    model_name = model.splitlines()[0].strip()
                     model_str = "0 FILE " + model
                     m = LdrModel.from_str(model_str, model_name)
                     self.models[model_name] = m
@@ -405,6 +482,25 @@ class LdrFile:
         for s in self.build_steps:
             for o in s.objs:
                 print(o)
+
+    def print_bom(self):
+        c = Counter()
+        for o in self.model_parts_at_step(-1):
+            c.update([o.part_key])
+        c = c.most_common()
+        for k, v in c:
+            ks = k.split("-")
+            colour = LdrColour(int(ks[1]))
+            print(
+                "%3dx [reverse %s]%-20s[not reverse] [%s]%s[/]"
+                % (v, colour.hex_code, colour.name, RICH_PART_COLOUR, ks[0])
+            )
+
+    def write_model_to_file(self, fn, idx):
+        model = self.model_parts_at_step(-1)
+        with open(fn, "wt") as fp:
+            for obj in model:
+                fp.write(str(obj) + "\n")
 
     @property
     def piece_count(self):

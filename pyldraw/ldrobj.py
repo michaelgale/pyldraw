@@ -302,6 +302,14 @@ class LdrMeta(LdrObj):
         return None
 
     @property
+    def start_of_model(self):
+        return self.command.upper() == "FILE"
+
+    @property
+    def end_of_model(self):
+        return self.command.upper() == "NOFILE"
+
+    @property
     def rotation_absolute(self):
         if self.command.upper() == "ROTSTEP":
             if "ABS" in self.parameters:
@@ -345,7 +353,7 @@ class LdrLine(LdrObj):
         super().__init__(**kwargs)
 
     def __str__(self):
-        return "2 %d %s" % (self.colour, self.points_str)
+        return "2 %d %s" % (self.colour.code, self.points_str)
 
     def __rich__(self):
         s = []
@@ -375,7 +383,7 @@ class LdrTriangle(LdrObj):
         super().__init__(**kwargs)
 
     def __str__(self):
-        return "3 %d %s" % (self.colour, self.points_str)
+        return "3 %d %s" % (self.colour.code, self.points_str)
 
     def __rich__(self):
         s = []
@@ -406,7 +414,7 @@ class LdrQuad(LdrObj):
         super().__init__(**kwargs)
 
     def __str__(self):
-        return "4 %d %s" % (self.colour, self.points_str)
+        return "4 %d %s" % (self.colour.code, self.points_str)
 
     def __rich__(self):
         s = []
