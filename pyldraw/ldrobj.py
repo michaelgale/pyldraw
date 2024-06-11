@@ -42,8 +42,10 @@ class LdrObj:
         self.raw = None
         self.path = None
         for k, v in kwargs.items():
-            if k in self.__dict__:
-                self.__dict__[k] = v
+            if k == "colour":
+                self._colour = LdrColour(v)
+            elif k == "aspect":
+                self.set_rotation(v)
             elif k == "point1" or k == "p1" or k == "pos":
                 self._pts[0] = safe_vector(v)
             elif k == "point2" or k == "p2":
@@ -52,6 +54,8 @@ class LdrObj:
                 self._pts[2] = safe_vector(v)
             elif k == "point4" or k == "p4":
                 self._pts[3] = safe_vector(v)
+            elif k in self.__dict__:
+                self.__dict__[k] = v
 
     def __repr__(self) -> str:
         return "%s(%s:%s)" % (self.__class__.__name__, self.path, str(self))
@@ -97,13 +101,6 @@ class LdrObj:
                     return True
         return False
 
-    def is_model_named(self, name):
-        if not isinstance(self, LdrPart):
-            return False
-        if not self.is_model:
-            return False
-        return self.name == name
-
     @property
     def model_part_name(self):
         if not isinstance(self, LdrPart):
@@ -140,7 +137,7 @@ class LdrObj:
     def is_step_delimiter(self):
         if not isinstance(self, LdrMeta):
             return False
-        if self.command.upper() in ("STEP", "ROTSTEP"):
+        if self.command in DELIMITER_META:
             return True
         return False
 
@@ -548,7 +545,7 @@ class LdrPart(LdrObj):
         return " ".join(s)
 
     def __hash__(self):
-        return hash(self.name, self.colour.code, str(self.pos))
+        return hash(self.name, self.colour.code, self.path, str(self.pos))
 
     def __eq__(self, other):
         return self.is_identical(other)

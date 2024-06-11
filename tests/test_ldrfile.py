@@ -126,25 +126,12 @@ def test_ldrfile():
     assert f1.element_count == 14
     assert f1.build_steps[-1].sha1_hash == "a0c91c74cb724067d463737c1e7437d30608a45a"
 
-    # for i, s in enumerate(f1.build_steps):
-    #     print(str(s))
-    # print(f1.build_steps[-1].sha1_hash)
-
-    # for o in s.objs:
-    #     print(str(o))
+    # print("Piece count   : %dx" % (f1.piece_count))
+    # print("Element count : %dx" % (f1.element_count))
+    # print("Colour count  : %dx" % (f1.colour_count))
 
     # f1 = LdrFile("./tests/testfiles/Cafe2_clean.ldr", initial_aspect=(0, 45, 0))
     # f1.print_bom()
-    # print(f1.__dict__)
-    # f1.write_model_to_file("./tests/testfiles/test_out.ldr", -1)
-
-    # for i, s in enumerate(f1.build_steps):
-    #     print(s)
-    #     print("-----------------------------------")
-
-    # for i, s in enumerate(f1.build_steps):
-    #     print(str(s))
-    #     for o in s.objs:
-    #         print(str(o))
-    # print("------------------------------------------")
-    # print(str(s))
+    # print("Piece count   : %dx" % (f1.piece_count))
+    # print("Element count : %dx" % (f1.element_count))
+    # print("Colour count  : %dx" % (f1.colour_count))

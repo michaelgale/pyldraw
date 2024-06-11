@@ -7,6 +7,11 @@ from pyldraw import *
 def test_ldrobj_init():
     o1 = LdrObj()
     assert o1 is not None
+    p1 = LdrPart(name="3001.dat", colour=15, aspect=(30, 55, 0))
+    assert p1.name == "3001.dat"
+    assert p1.colour.code == 15
+    assert p1.colour.hex_code == "#FFFFFF"
+    assert p1.pos.almost_same_as((0, 0, 0))
 
 
 def test_ldrcomment():

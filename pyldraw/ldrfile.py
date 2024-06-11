@@ -23,6 +23,7 @@
 #
 # LDraw file parsing, with supporting model and step object classes
 
+import os
 from collections import Counter
 import hashlib
 import inspect
@@ -33,6 +34,7 @@ from .geometry import Vector, Matrix
 from .ldrobj import LdrObj, LdrMeta
 from .ldrcolour import LdrColour
 from .constants import *
+from .ldrutils import *
 
 
 def recursive_unwrap_model(
@@ -53,7 +55,7 @@ def recursive_unwrap_model(
         objects = []
     for obj in model.iter_objs():
         if only_submodel is not None:
-            if not obj.is_model_named(only_submodel):
+            if not obj.matched_name(only_submodel):
                 continue
         if obj.model_part_name in submodels:
             submodel = submodels[obj.model_part_name]
@@ -77,7 +79,7 @@ def recursive_unwrap_model(
 
 class LdrStep:
     """LdrStep is a simple container for LdrObj objects associated with s single step.
-    LdrStep objects are delimited by STEP directives in an LDraw file.
+    LdrStep objects are delimited by STEP and ROTSTEP directives in an LDraw file.
     """
 
     def __init__(self, objs=None, **kwargs):
@@ -114,6 +116,12 @@ class LdrStep:
             yield o
 
     def delimited_objs(self):
+        """Captures objects in a step which are between BEGIN/END delimiters.
+        This can be useful for extracting objects which are marked for
+        exclusion in a parts list, or objects added by LSYNTH, etc.
+        A list of dictionaries is returned with the dictionary containing
+        keys for the LDraw line that triggered the capture and a list of parts
+        associated with the capture."""
         delimited = []
         group = {}
         is_captured = False
@@ -279,12 +287,12 @@ class BuildStep(LdrStep):
     @property
     def step_parts(self):
         """Returns a list of LdrPart objects representing the new parts added at this step"""
-        return [p for p in self.step_objs if p.part_name is not None]
+        return filter_objs(self.step_objs, is_part=True)
 
     @property
     def model_parts(self):
         """Returns a list of LdrPart objects representing the total model at this step."""
-        return [p for p in self.model_objs if p.part_name is not None]
+        return filter_objs(self.model_objs, is_part=True)
 
     def iter_meta_objs(self):
         """Generator which iterates over step objects which represent meta commands"""
@@ -465,6 +473,7 @@ class LdrFile:
         self.models = {}
         # list of unwrapped building steps (BuildStep objects)
         self.build_steps = None
+        # default initial viewing angle
         self.initial_aspect = Vector(0, 0, 0)
         for k, v in kwargs.items():
             if k in self.__dict__:
@@ -509,16 +518,31 @@ class LdrFile:
         for k, v in c:
             ks = k.split("-")
             colour = LdrColour(int(ks[1]))
-            print(
-                "%3dx [reverse %s]%-20s[not reverse] [%s]%s[/]"
-                % (v, colour.hex_code, colour.name, RICH_PART_COLOUR, ks[0])
-            )
+            if any(x in colour.name for x in ("Black", "Brown", "Dark")):
+                print(
+                    "[white]%3dx[/] [bold white on %s]%-20s[/] [%s]%s[/]"
+                    % (v, colour.hex_code, colour.name, RICH_PART_COLOUR, ks[0])
+                )
+            else:
+                print(
+                    "[white]%3dx[/] [bold black on %s]%-20s[/] [%s]%s[/]"
+                    % (v, colour.hex_code, colour.name, RICH_PART_COLOUR, ks[0])
+                )
 
-    def write_model_to_file(self, fn, idx):
-        model = self.model_parts_at_step(-1)
+    def write_model_to_file(self, fn, idx=None):
+        idx = idx if idx is not None else -1
+        model = self.model_parts_at_step(idx)
+        base_name_ext = os.path.basename(fn)
+        base_name = os.path.splitext(os.path.basename(fn))[0]
+        if idx < 0:
+            idx = idx + len(self.build_steps)
+        model_name = "%s_S%d" % (base_name, idx)
+        model_name = base_name_ext.replace(base_name, model_name)
         with open(fn, "wt") as fp:
+            fp.write("0 FILE %s\n" % (model_name))
             for obj in model:
                 fp.write(str(obj) + "\n")
+            fp.write("0 NOFILE\n")
 
     @property
     def piece_count(self):
@@ -530,6 +554,24 @@ class LdrFile:
         for o in self.model_parts_at_step(-1):
             c.update([o.part_key])
         return len(c)
+
+    @property
+    def colour_count(self):
+        c = Counter()
+        for o in self.model_parts_at_step(-1):
+            c.update([o.colour.code])
+        return len(c)
+
+    def iter_steps(self):
+        """Iterates through unwrapped building steps yielding a BuildStep object."""
+        for step in self.build_steps:
+            yield step
+
+    def iter_model(self):
+        """Iterates through snapshots of the build model at each build step.
+        A list of LdrPart objects is returned representing the model state."""
+        for step in self.build_steps:
+            yield step.model_parts
 
     def model_parts_at_step(self, idx):
         return self.build_steps[idx].model_parts
