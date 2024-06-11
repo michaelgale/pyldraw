@@ -74,3 +74,9 @@ def listify(v):
     if not isinstance(v, (list, tuple)):
         return [v]
     return v
+
+
+def strip_part_ext(name):
+    for e in (".dat", ".DAT", ".ldr", ".LDR", ".mpd", ".MPD"):
+        name = name.replace(e, "")
+    return name

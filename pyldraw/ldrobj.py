@@ -24,7 +24,7 @@
 # LDraw object base class
 
 from .geometry import Vector, Matrix, safe_vector
-from .helpers import quantize, vector_str, mat_str, rich_vector_str, listify
+from .helpers import quantize, vector_str, mat_str, rich_vector_str, strip_part_ext
 from .constants import *
 from .ldrcolour import LdrColour
 
@@ -54,7 +54,7 @@ class LdrObj:
                 self._pts[3] = safe_vector(v)
 
     def __repr__(self) -> str:
-        return "%s(%s:%s)" % (self.__class__.__name__, self.path, self.raw)
+        return "%s(%s:%s)" % (self.__class__.__name__, self.path, str(self))
 
     def copy(self):
         if isinstance(self, LdrComment):
@@ -69,9 +69,33 @@ class LdrObj:
             new_obj = LdrQuad()
         elif isinstance(self, LdrPart):
             new_obj = LdrPart()
+        else:
+            new_obj = LdrObj()
         for k, v in self.__dict__.items():
             new_obj.__dict__[k] = v
         return new_obj
+
+    @property
+    def has_start_capture_meta(self):
+        raw_text = self.raw.upper()
+        if "BEGIN" in raw_text:
+            return True
+        else:
+            for e in START_META:
+                if all(s in raw_text for s in e.split()):
+                    return True
+        return False
+
+    @property
+    def has_end_capture_meta(self):
+        raw_text = self.raw.upper()
+        if "END" in raw_text:
+            return True
+        else:
+            for e in END_META:
+                if all(s in raw_text for s in e.split()):
+                    return True
+        return False
 
     def is_model_named(self, name):
         if not isinstance(self, LdrPart):
@@ -96,13 +120,21 @@ class LdrObj:
             return None
         return self.name
 
+    def matched_name(self, name):
+        if not isinstance(self, LdrPart):
+            return False
+        name_ext = strip_part_ext(name)
+        my_name_ext = strip_part_ext(self.name)
+        return name_ext == my_name_ext
+
     @property
     def part_key(self):
         if not isinstance(self, LdrPart):
             return None
+        name = strip_part_ext(self.name)
         if self.is_part:
-            return "%s-%d" % (self.name, self.colour.code)
-        return self.name
+            return "%s-%d" % (name, self.colour.code)
+        return name
 
     @property
     def is_step_delimiter(self):
@@ -111,6 +143,13 @@ class LdrObj:
         if self.command.upper() in ("STEP", "ROTSTEP"):
             return True
         return False
+
+    def renamed(self, name):
+        if not isinstance(self, LdrPart):
+            return self
+        obj = self.copy()
+        obj.name = name
+        return obj
 
     @property
     def colour(self):
@@ -178,9 +217,14 @@ class LdrObj:
             pt += Vector(offset)
 
     def translated(self, offset):
-        for pt in self._pts:
-            pt += Vector(offset)
-        return self
+        obj = self.copy()
+        obj._pts = [pt + Vector(offset) for pt in obj._pts]
+        return obj
+
+    def moved_to(self, offset):
+        obj = self.copy()
+        obj._pts = [Vector(offset) for _ in obj._pts]
+        return obj
 
     def transform(self, matrix):
         for pt in self._pts:
@@ -210,6 +254,11 @@ class LdrObj:
     def new_path(self, path):
         obj = self.copy()
         obj.path = path
+        return obj
+
+    def new_colour(self, colour):
+        obj = self.copy()
+        obj._colour = LdrColour(colour)
         return obj
 
     @staticmethod
@@ -252,6 +301,12 @@ class LdrComment(LdrObj):
         s.append("[not bold %s]%s" % (RICH_COMMENT_COLOUR, self.text.rstrip()))
         return " ".join(s)
 
+    def __hash__(self):
+        return hash(str(self))
+
+    def __eq__(self, other):
+        return hash(str(self)) == hash(str(other))
+
     @staticmethod
     def from_str(s):
         split_line = s.lower().split()
@@ -290,6 +345,12 @@ class LdrMeta(LdrObj):
             else:
                 s.append("[%s]%s" % (RICH_PARAM_COLOUR, p))
         return " ".join(s)
+
+    def __hash__(self):
+        return hash(str(self))
+
+    def __eq__(self, other):
+        return hash(str(self)) == hash(str(other))
 
     @property
     def is_model_name(self):
@@ -363,6 +424,12 @@ class LdrLine(LdrObj):
         s.append(rich_vector_str(self.point2, colour=RICH_COORD2_COLOUR))
         return " ".join(s)
 
+    def __hash__(self):
+        return hash(str(self))
+
+    def __eq__(self, other):
+        return hash(str(self)) == hash(str(other))
+
     @staticmethod
     def from_str(s):
         split_line = s.lower().split()
@@ -393,6 +460,12 @@ class LdrTriangle(LdrObj):
         s.append(rich_vector_str(self.point2, colour=RICH_COORD2_COLOUR))
         s.append(rich_vector_str(self.point3, colour=RICH_COORD1_COLOUR))
         return " ".join(s)
+
+    def __hash__(self):
+        return hash(str(self))
+
+    def __eq__(self, other):
+        return hash(str(self)) == hash(str(other))
 
     @staticmethod
     def from_str(s):
@@ -425,6 +498,12 @@ class LdrQuad(LdrObj):
         s.append(rich_vector_str(self.point3, colour=RICH_COORD1_COLOUR))
         s.append(rich_vector_str(self.point4, colour=RICH_COORD2_COLOUR))
         return " ".join(s)
+
+    def __hash__(self):
+        return hash(str(self))
+
+    def __eq__(self, other):
+        return hash(str(self)) == hash(str(other))
 
     @staticmethod
     def from_str(s):
@@ -468,6 +547,15 @@ class LdrPart(LdrObj):
             s.append("[%s]%s" % (RICH_FILE_COLOUR, self.name))
         return " ".join(s)
 
+    def __hash__(self):
+        return hash(self.name, self.colour.code, str(self.pos))
+
+    def __eq__(self, other):
+        return self.is_identical(other)
+
+    def __ne__(self, other):
+        return not self.is_identical(other)
+
     @property
     def is_part(self):
         return self.name.lower().endswith(".dat")
@@ -475,6 +563,20 @@ class LdrPart(LdrObj):
     @property
     def is_model(self):
         return any(self.name.lower().endswith(x) for x in (".ldr", ".mpd"))
+
+    def is_same_element(self, other):
+        if not isinstance(other, LdrPart):
+            return False
+        return self.name == other.name and self.colour.code == other.colour.code
+
+    def is_identical(self, other):
+        if not self.is_same_element(other):
+            return False
+        if not self.pos.almost_same_as(other.pos):
+            return False
+        if not self.matrix.is_almost_same_as(other.matrix):
+            return False
+        return True
 
     @staticmethod
     def from_str(s):

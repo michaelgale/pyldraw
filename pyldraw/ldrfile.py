@@ -113,6 +113,23 @@ class LdrStep:
         for o in self.objs:
             yield o
 
+    def delimited_objs(self):
+        delimited = []
+        group = {}
+        is_captured = False
+        for o in self.objs:
+            if o.has_start_capture_meta and not is_captured:
+                is_captured = True
+                group["trigger"] = o.raw
+                group["objs"] = []
+            elif o.has_end_capture_meta and is_captured:
+                delimited.append(group)
+                group = {}
+                is_captured = False
+            elif is_captured:
+                group["objs"].append(o)
+        return delimited
+
     @property
     def part_qty(self):
         return sum(v for _, v in self.parts.items())
@@ -167,6 +184,7 @@ class BuildStep(LdrStep):
         self._model_objs = None
         # container for all objects added at this step
         self._step_objs = None
+        # hash code for detecting changes in model state
         self._sha1_hash = None
 
     def __repr__(self) -> str:
@@ -434,7 +452,7 @@ class UnwrapCtx:
 
 
 class LdrFile:
-    """LdrFile is a simple container for objects parsed from an LDraw file.
+    """LdrFile is a container for objects parsed from an LDraw file.
     It stores a root model and a dictionary of sub-models; each of which are
     LdrModel objects.  After parsing, a list of building steps is computed
     which represent a recursively unwrapped sequence of building instructions."""

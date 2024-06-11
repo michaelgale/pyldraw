@@ -11,3 +11,4 @@ from .constants import *
 from .ldrcolour import LdrColour
 from .ldrobj import LdrObj, LdrComment, LdrMeta, LdrLine, LdrTriangle, LdrQuad, LdrPart
 from .ldrfile import LdrStep, LdrModel, LdrFile, BuildStep
+from .ldrutils import *
