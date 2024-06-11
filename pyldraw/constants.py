@@ -312,10 +312,12 @@ LDR_COLOUR_HEX = {
 LDR_CODE_FROM_HEX = dict(map(reversed, LDR_COLOUR_HEX.items()))
 
 MPD_META = [
-    "STEP",
     "FILE",
     "NOFILE",
 ]
+
+START_META = ["PLI BEGIN IGN", "BUFEXCHG STORE"]
+END_META = ["PLI END", "BUFEXCHG RETRIEVE"]
 
 LDR_META_DICT = {
     "FILE": "",
@@ -326,7 +328,14 @@ LDR_META_DICT = {
     "CLEAR": "",
     "PAUSE": "",
     "SAVE": "",
-    "BFC": "",
+    "BFC": "( CERTIFY ( CCW | CW ) | NOCERTIFY )",
+    "!LDRAW_ORD": "",
+    "!LICENSE": "",
+    "!HELP": "",
+    "!CATEGORY": "",
+    "!KEYWORDS": "",
+    "!CMDLINE": "",
+    "!HISTORY": "",
     "ROTSTEP": "(<x-angle> <y-angle> <z-angle> [(REL| ADD | ABS)] | END)",
     "BACKGROUND": "<filename>",
     "BUFEXCHG": "(A-H) (STORE | RETRIEVE)",

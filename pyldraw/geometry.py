@@ -228,7 +228,11 @@ class Vector(object):
     __slots__ = ("x", "y", "z")
 
     def __init__(self, x, y=None, z=None):
-        if isinstance(x, (tuple, list)):
+        if isinstance(x, Vector):
+            self.x = x.x
+            self.y = x.y
+            self.z = x.z
+        elif isinstance(x, (tuple, list)):
             self.x = float(x[0])
             self.y = float(x[1])
             self.z = float(x[2])
@@ -246,6 +250,7 @@ class Vector(object):
         return hash((self.x, self.y, self.z))
 
     def __add__(self, other):
+        other = Vector(other)
         x = self.x + other.x
         y = self.y + other.y
         z = self.z + other.z
@@ -255,6 +260,7 @@ class Vector(object):
     __radd__ = __add__
 
     def __sub__(self, other):
+        other = Vector(other)
         x = self.x - other.x
         y = self.y - other.y
         z = self.z - other.z
@@ -262,6 +268,7 @@ class Vector(object):
         return Vector(x, y, z)
 
     def __rsub__(self, other):
+        other = Vector(other)
         x = other.x - self.x
         y = other.y - self.y
         z = other.z - self.z

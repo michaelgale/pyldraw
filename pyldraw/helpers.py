@@ -27,9 +27,9 @@ import decimal
 from .geometry import Vector
 
 
-def quantize(x):
+def quantize(x, tol=-6):
     """Quantizes an string LDraw value to 4 decimal places"""
-    v = decimal.Decimal(x.strip()).quantize(decimal.Decimal(10) ** -4)
+    v = decimal.Decimal(x.strip()).quantize(decimal.Decimal(10) ** tol)
     return float(v)
 
 
@@ -40,7 +40,7 @@ def val_units(value):
     redundant trailing zeros (as recommended by ldraw.org)
     """
     xs = "%.5f" % (value)
-    ns = str(quantize(xs)).replace("0E-4", "0.")
+    ns = str(quantize(xs, tol=-4)).replace("0E-4", "0.")
     if "E" not in ns:
         ns = ns.rstrip("0")
     ns = ns.rstrip(".")
@@ -68,3 +68,9 @@ def quant_vector(v):
 
 def rich_vector_str(v, colour="white"):
     return "[not bold][%s]%s %s %s" % (colour, *quant_vector(v))
+
+
+def listify(v):
+    if not isinstance(v, (list, tuple)):
+        return [v]
+    return v

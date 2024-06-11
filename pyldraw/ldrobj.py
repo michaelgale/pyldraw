@@ -24,7 +24,7 @@
 # LDraw object base class
 
 from .geometry import Vector, Matrix, safe_vector
-from .helpers import quantize, vector_str, mat_str, rich_vector_str
+from .helpers import quantize, vector_str, mat_str, rich_vector_str, listify
 from .constants import *
 from .ldrcolour import LdrColour
 
@@ -40,6 +40,7 @@ class LdrObj:
         self.matrix = Matrix.identity()
         self._pts = [Vector(0, 0, 0)] * 4
         self.raw = None
+        self.path = None
         for k, v in kwargs.items():
             if k in self.__dict__:
                 self.__dict__[k] = v
@@ -53,7 +54,7 @@ class LdrObj:
                 self._pts[3] = safe_vector(v)
 
     def __repr__(self) -> str:
-        return "%s(%s)" % (self.__class__.__name__, self.raw)
+        return "%s(%s:%s)" % (self.__class__.__name__, self.path, self.raw)
 
     def copy(self):
         if isinstance(self, LdrComment):
@@ -72,7 +73,6 @@ class LdrObj:
             new_obj.__dict__[k] = v
         return new_obj
 
-    @property
     def is_model_named(self, name):
         if not isinstance(self, LdrPart):
             return False
@@ -81,7 +81,7 @@ class LdrObj:
         return self.name == name
 
     @property
-    def model_name(self):
+    def model_part_name(self):
         if not isinstance(self, LdrPart):
             return None
         if not self.is_model:
@@ -97,10 +97,18 @@ class LdrObj:
         return self.name
 
     @property
+    def part_key(self):
+        if not isinstance(self, LdrPart):
+            return None
+        if self.is_part:
+            return "%s-%d" % (self.name, self.colour.code)
+        return self.name
+
+    @property
     def is_step_delimiter(self):
         if not isinstance(self, LdrMeta):
             return False
-        if self.command.upper() == "STEP":
+        if self.command.upper() in ("STEP", "ROTSTEP"):
             return True
         return False
 
@@ -199,8 +207,17 @@ class LdrObj:
         obj._pts = [pt * rt for pt in obj.points]
         return obj
 
+    def new_path(self, path):
+        obj = self.copy()
+        obj.path = path
+        return obj
+
     @staticmethod
     def from_str(s):
+        if s is None:
+            return None
+        if len(s) < 2:
+            return None
         split_line = s.split()
         line_type = int(split_line[0].lstrip())
         if line_type == 0:
@@ -282,6 +299,27 @@ class LdrMeta(LdrObj):
     def model_name(self):
         if self.is_model_name:
             return self.parameters
+        return None
+
+    @property
+    def rotation_absolute(self):
+        if self.command.upper() == "ROTSTEP":
+            if "ABS" in self.parameters:
+                return Vector(self.parameters.split()[0:3])
+        return None
+
+    @property
+    def rotation_relative(self):
+        if self.command.upper() == "ROTSTEP":
+            if "REL" in self.parameters:
+                return Vector(self.parameters.split()[0:3])
+        return None
+
+    @property
+    def rotation_end(self):
+        if self.command.upper() == "ROTSTEP":
+            if "END" in self.parameters:
+                return True
         return None
 
     @staticmethod
