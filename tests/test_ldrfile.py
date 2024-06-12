@@ -119,12 +119,13 @@ def test_step_delimiter():
 
 def test_ldrfile():
     f1 = LdrFile("./tests/testfiles/test_file1.ldr", initial_aspect=(0, 45, 0))
+
     assert f1.root is not None
     assert len(f1.models) == 3
     assert len(f1.build_steps) == 17
     assert f1.piece_count == 27
     assert f1.element_count == 14
-    assert f1.build_steps[-1].sha1_hash == "a0c91c74cb724067d463737c1e7437d30608a45a"
+    assert f1.build_steps[-1].sha1_hash == "5af110bece15f97c8d2276975f4f04b3c068057a"
 
     # print("Piece count   : %dx" % (f1.piece_count))
     # print("Element count : %dx" % (f1.element_count))

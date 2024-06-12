@@ -33,13 +33,17 @@ clean-pyc: ## remove Python file artifacts
 clean-test: ## remove test and coverage artifacts
 	@rm -f .coverage
 	@rm -fr htmlcov/
+	@rm -f tests/outfiles/*
+	@rm -f tests/outimages/*
 
 lint: ## check style with black
 	@black pyldraw/*.py
+	@black pyldraw/support/*.py
 	@black tests/*.py
 
 lint-check: ## check if lint status is consistent between commits
 	@black --diff --check pyldraw/*.py
+	@black --diff --check pyldraw/support/*.py
 	@black --diff --check tests/*.py
 
 test: ## run tests quickly with the default Python

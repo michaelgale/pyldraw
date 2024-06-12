@@ -23,6 +23,7 @@
 #
 # Helper functions
 
+import os
 import decimal
 from .geometry import Vector
 
@@ -80,3 +81,17 @@ def strip_part_ext(name):
     for e in (".dat", ".DAT", ".ldr", ".LDR", ".mpd", ".MPD"):
         name = name.replace(e, "")
     return name
+
+
+def normalize_filename(filename, filepath):
+    """Ensures filename is formatted to include the path whether or not it is included."""
+    if filepath is not None:
+        path, _ = os.path.split(filename)
+        oppath = os.path.normpath(filepath)
+        if not oppath in path:
+            fn = os.path.normpath(filepath + os.sep + filename)
+        else:
+            fn = filename
+    else:
+        fn = os.path.normpath(filename)
+    return fn

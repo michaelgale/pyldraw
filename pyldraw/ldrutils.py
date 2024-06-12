@@ -23,6 +23,8 @@
 #
 # LDraw object utilities
 
+import os
+
 from .ldrobj import LdrMeta, LdrPart
 
 
@@ -48,7 +50,7 @@ def filter_objs(
     if colour is not None:
         x = [xo and o.colour.code == colour for xo, o in zip(x, a)]
     if path is not None:
-        x = [xo and o.path == path for xo, o in zip(x, a)]
+        x = [xo and o.matched_path(path) for xo, o in zip(x, a)]
     if is_part is not None:
         x = [
             xo and (bool(o.part_name) if isinstance(o, LdrPart) else False)
@@ -117,3 +119,10 @@ def obj_exclusive(a, b):
     """returns the elements of a and b which are not common"""
     c = obj_union(a, b)
     return obj_difference(c, obj_intersect(a, b))
+
+
+def file_name_with_index(fn, idx):
+    """inserts an index into a filename's basename before extension"""
+    path, base = os.path.split(fn)
+    base, ext = os.path.splitext(base)
+    return path + os.sep + "%s_%d" % (base, idx) + ext

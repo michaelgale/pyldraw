@@ -83,6 +83,11 @@ def test_filter():
     y = filter_objs(GA, path="0/groupa")
     assert len(y) == 5
 
+    y = filter_objs(GA, path="group")
+    assert len(y) == 5
+    y = filter_objs(GA, path="0/")
+    assert len(y) == 5
+
     z = filter_objs(GA, path="0/groupb")
     assert len(z) == 0
 

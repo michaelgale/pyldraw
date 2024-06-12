@@ -1,0 +1,42 @@
+# LdrFile tests
+
+from rich import print, inspect
+from pyldraw import *
+
+
+FN_LDR = "./tests/testfiles/test_file1.ldr"
+FN_LDR_MODEL = "./tests/outfiles/test_ldv1.ldr"
+IMG_PATH = "./tests/outimages/"
+
+LDV_ARGS = {
+    "overwrite": False,
+    "dpi": 150,
+    "auto_crop": False,
+    "output_path": IMG_PATH,
+    "log_output": False,
+    "log_level": 0,
+}
+
+TEST_RENDER_PARTS = True
+TEST_RENDER_STEPS = False
+TEST_RENDER_OUTLINE = True
+TEST_STEP_RANGE = (1, 14)
+
+
+def test_ldvrender_part():
+    p1 = LdrPart(name="3001.dat", colour=4)
+    p1.render_image(**LDV_ARGS)
+
+
+def test_ldvrender_file():
+    f1 = LdrFile(FN_LDR, dpi=LDV_ARGS["dpi"], initial_aspect=(-35, -40, 0))
+    if TEST_RENDER_STEPS:
+        for i, step in enumerate(f1.iter_steps()):
+            if i >= TEST_STEP_RANGE[0] and i <= TEST_STEP_RANGE[1]:
+                step.render_model(**LDV_ARGS)
+                step.render_masked_image(**LDV_ARGS)
+                step.render_unmasked_image(**LDV_ARGS)
+                if TEST_RENDER_OUTLINE:
+                    step.render_outline_image(**LDV_ARGS)
+                if TEST_RENDER_PARTS:
+                    step.render_parts_images(**LDV_ARGS)

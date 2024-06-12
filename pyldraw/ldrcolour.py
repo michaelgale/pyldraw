@@ -119,6 +119,10 @@ class LdrColour:
             int(self.b * 255.0),
         )
 
+    @property
+    def bgr(self):
+        return (int(self.b * 255), int(self.g * 255), int(self.r * 255))
+
     def set_rgb(self, r, g=None, b=None):
         if r is None:
             return

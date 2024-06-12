@@ -25,8 +25,8 @@
 
 from .geometry import Vector, Matrix, safe_vector
 from .helpers import quantize, vector_str, mat_str, rich_vector_str, strip_part_ext
-from .constants import *
-from .ldrcolour import LdrColour
+
+from pyldraw import *
 
 
 class LdrObj:
@@ -116,6 +116,13 @@ class LdrObj:
         if not self.is_part:
             return None
         return self.name
+
+    def matched_path(self, path, exact=False):
+        if exact:
+            return path == self.path
+        if self.path is not None:
+            return path in self.path
+        return False
 
     def matched_name(self, name):
         if not isinstance(self, LdrPart):
@@ -609,3 +616,24 @@ class LdrPart(LdrObj):
         pname = " ".join(split_line[14:])
         p.name = pname
         return p
+
+    def render_image(self, scale=None, aspect=None, **kwargs):
+        scale = scale if scale is not None else DEFAULT_PLI_SCALE
+        aspect = aspect if aspect is not None else DEFAULT_PLI_ASPECT
+        self.set_rotation(Vector(aspect))
+        aspect = tuple(int(v) & 0xFF for v in aspect[:3])
+        name = strip_part_ext(self.name)
+        dpi = DEFAULT_DPI
+        if "dpi" in kwargs:
+            dpi = kwargs["dpi"]
+        fn = "%s-%d-%3d-%.2f-%02X%02X%02X.png" % (
+            name,
+            self.colour.code,
+            dpi,
+            scale,
+            aspect[0],
+            aspect[1],
+            aspect[2],
+        )
+        ldv = LDViewRender(**kwargs)
+        ldv.render_from_parts([self], fn)
