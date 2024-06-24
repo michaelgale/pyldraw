@@ -29,9 +29,9 @@ import inspect
 
 from rich import print
 
-from .geometry import Vector, Matrix
+from .geometry import Vector, Matrix, safe_vector
 from .ldrutils import *
-from .helpers import normalize_filename, strip_part_ext
+from .helpers import normalize_filename, strip_part_ext, quantize
 from pyldraw import *
 from pyldraw.support.imgutils import ImageMixin
 
@@ -50,6 +50,7 @@ class LdrStep:
                 self.__dict__[k] = v
         self._sub_models = None
         self._parts = None
+        self._delimited = None
 
     def __repr__(self) -> str:
         return "%s(%d objects)" % (self.__class__.__name__, len(self.objs))
@@ -74,6 +75,7 @@ class LdrStep:
         for o in self.objs:
             yield o
 
+    @property
     def delimited_objs(self):
         """Captures objects in a step which are between BEGIN/END delimiters.
         This can be useful for extracting objects which are marked for
@@ -81,6 +83,8 @@ class LdrStep:
         A list of dictionaries is returned with the dictionary containing
         keys for the LDraw line that triggered the capture and a list of parts
         associated with the capture."""
+        if not self._delimited is None:
+            return self._delimited
         delimited = []
         group = {}
         is_captured = False
@@ -95,7 +99,13 @@ class LdrStep:
                 is_captured = False
             elif is_captured:
                 group["objs"].append(o)
-        return delimited
+        for d in delimited:
+            if "!PY SHIFT" in d["trigger"]:
+                vals = d["trigger"].split()[4:7]
+                vals = [quantize(v) for v in vals]
+                d["offset"] = safe_vector(vals)
+        self._delimited = delimited
+        return self._delimited
 
     @property
     def part_qty(self):
@@ -162,18 +172,18 @@ class BuildStep(LdrStep):
 
     def __rich__(self):
         s = []
-        s.append("STEP: %d level: %d aspect: %s" % (self.idx, self.level, self.aspect))
         s.append(
-            "  step objs: %d  model objs: %d  step parts: %d  model parts: %d"
+            "STEP: %3d level: %1d objs: %3d/%3d parts: %3d/%3d aspect: %s"
             % (
+                self.idx,
+                self.level,
                 len(self.step_objs),
                 len(self.model_objs),
                 len(self.step_parts),
                 len(self.model_parts),
+                self.aspect,
             )
         )
-        for o in self.step_parts:
-            s.append(o.__rich__())
         return "\n".join(s)
 
     def __str__(self):
@@ -239,24 +249,40 @@ class BuildStep(LdrStep):
     @property
     def step_objs(self):
         """Returns a list of LdrObj representing new objects added at this step."""
-        if self._step_objs is not None:
-            return self._step_objs
+        return self._step_objs
 
     @property
     def model_objs(self):
         """Returns a list of all LdrObj representing the total model"""
-        if self._model_objs is not None:
-            return self._model_objs
+        return self._model_objs
+
+    def _shifted_objs(self, only_for_step=True):
+        """Ensures objects that are shifted by delimiter meta lines are transformed to
+        their correct position."""
+        if only_for_step:
+            objs = filter_objs(self.step_objs, is_part=True)
+        else:
+            objs = filter_objs(self.model_objs, is_part=True)
+        shift_objs = []
+        for d in self.delimited_objs:
+            for obj in d["objs"]:
+                if obj.is_part:
+                    dobjs = filter_objs(objs, sha1_hash=obj.sha1_hash)
+                else:
+                    dobjs = filter_objs(objs, path=obj.path)
+                objs = obj_difference(objs, dobjs)
+                shift_objs.extend([o.transformed(offset=d["offset"]) for o in dobjs])
+        return obj_union(objs, shift_objs)
 
     @property
     def step_parts(self):
         """Returns a list of LdrPart objects representing the new parts added at this step"""
-        return filter_objs(self.step_objs, is_part=True)
+        return self._shifted_objs(only_for_step=True)
 
     @property
     def model_parts(self):
         """Returns a list of LdrPart objects representing the total model at this step."""
-        return filter_objs(self.model_objs, is_part=True)
+        return self._shifted_objs(only_for_step=False)
 
     def iter_meta_objs(self):
         """Generator which iterates over step objects which represent meta commands"""
@@ -288,6 +314,7 @@ class BuildStep(LdrStep):
         ImageMixin.save_image(fn, img)
 
     def render_outline_image(self, **kwargs):
+        """Renders the model image with outlines drawn around new parts"""
         path = kwargs["output_path"]
         unmasked = normalize_filename(self.unmasked_filenames[0][0], path)
         model = normalize_filename(self.model_filename(), path)
@@ -316,6 +343,8 @@ class BuildStep(LdrStep):
         ImageMixin.save_image(fn, img)
 
     def render_unmasked_image(self, **kwargs):
+        """Renders the model image with all new parts in ADDED_PARTS_COLOUR and
+        all other parts in a transparent non masked colour"""
         path = kwargs["output_path"]
         for fn, name in self.unmasked_filenames:
             fn = normalize_filename(fn, path)
@@ -323,6 +352,8 @@ class BuildStep(LdrStep):
             # centroids = ImageMixin.get_centroids_of_hue(fn, ADDED_PARTS_HSV_HUE, area_thr=750, dim_thr=50)
 
     def render_masked_image(self, **kwargs):
+        """Renders the model image with all new parts in ADDED_PARTS_COLOUR and
+        all other parts in an opaque masked colour"""
         path = kwargs["output_path"]
         for fn, name in self.masked_filenames:
             fn = normalize_filename(fn, path)
@@ -397,6 +428,37 @@ class BuildStep(LdrStep):
         return self.step_has_meta_command()
 
 
+def assign_part_path(p, name=None, path_names=None):
+    """Assigns a unique path for a part in a submodel taking into account multiple
+    instances of a submodel"""
+    if p is None:
+        return "root"
+    if name is None:
+        return p
+
+    name = strip_part_ext(name)
+    next_ref = name + ":0"
+    for pn in path_names:
+        levels = pn.split("/")
+        if len(levels) > 1:
+            last = levels[-1]
+            x = last.split(":")
+            if len(x) == 2:
+                if name == x[0]:
+                    next_ref = name + ":" + str(int(x[1]) + 1)
+                    break
+    p = p + "/" + next_ref
+    return p
+
+
+def demote_path(p):
+    """Strips the last item from a path to next level up in the hierarchy"""
+    paths = p.split("/")
+    if len(paths) > 1:
+        return p.replace(paths[-1], "").rstrip("/")
+    return p
+
+
 def recursive_unwrap_model(
     model,
     submodels,
@@ -404,6 +466,8 @@ def recursive_unwrap_model(
     offset=None,
     matrix=None,
     only_submodel=None,
+    path=None,
+    path_names=None,
 ):
     """Recursively parses an LDraw model plus any submodels and
     populates an object list representing that model.  To support selective
@@ -411,6 +475,9 @@ def recursive_unwrap_model(
     submodel name."""
     o = offset if offset is not None else Vector(0, 0, 0)
     m = matrix if matrix is not None else Matrix.identity()
+    all_paths = path_names if path_names is not None else []
+    p = assign_part_path(path, path_names=all_paths)
+
     if objects is None:
         objects = []
     for obj in model.iter_objs():
@@ -422,16 +489,23 @@ def recursive_unwrap_model(
             new_matrix = m * obj.matrix
             new_loc = m * obj.pos
             new_loc += o
+            p = assign_part_path(p, obj.model_part_name, path_names=all_paths)
+            obj.path = p
+            all_paths.append(p)
             recursive_unwrap_model(
                 submodel,
                 submodels,
                 objects,
                 offset=new_loc,
                 matrix=new_matrix,
+                path=p,
+                path_names=all_paths,
             )
+            p = demote_path(p)
         else:
             if only_submodel is None:
                 new_obj = obj.copy()
                 new_obj = new_obj.transformed(matrix=m, offset=o)
+                new_obj.path = p
                 objects.append(new_obj)
     return objects

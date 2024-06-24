@@ -51,10 +51,9 @@ class UnwrapCtx:
             if k in self.__dict__:
                 self.__dict__[k] = v
         if self.path is not None:
-            self.path = self.path[2:] + "/" + self.model_name
+            self.path = self.path + "/" + self.model_name
         else:
             self.path = self.model_name
-        self.path = str(self.level) + "/" + self.path
 
 
 class LdrFile:
@@ -201,7 +200,6 @@ class LdrFile:
                         aspect=ctx.aspect,
                         path=ctx.path,
                     )
-                    self.models[name].assign_path_to_objs(new_ctx.path)
                     _, new_idx = self.unwrap_build_steps(
                         ctx=new_ctx,
                         unwrapped=unwrapped,

@@ -106,7 +106,7 @@ def test_ldrmodel():
 def test_step_delimiter():
     m1 = LdrModel.from_str(TEST_MODEL3)
     for i, s in enumerate(m1.steps):
-        d1 = s.delimited_objs()
+        d1 = s.delimited_objs
         if i == 0:
             assert len(d1) == 1
         elif i == 1:

@@ -23,6 +23,8 @@
 #
 # LDraw object base class
 
+import hashlib
+
 from .geometry import Vector, Matrix, safe_vector
 from .helpers import quantize, vector_str, mat_str, rich_vector_str, strip_part_ext
 
@@ -41,6 +43,7 @@ class LdrObj:
         self._pts = [Vector(0, 0, 0)] * 4
         self.raw = None
         self.path = None
+        self._sha1_hash = None
         for k, v in kwargs.items():
             if k == "colour":
                 self._colour = LdrColour(v)
@@ -78,6 +81,14 @@ class LdrObj:
         for k, v in self.__dict__.items():
             new_obj.__dict__[k] = v
         return new_obj
+
+    @property
+    def sha1_hash(self):
+        if self._sha1_hash is None:
+            hk = hashlib.sha1()
+            hk.update(bytes(str(self), encoding="utf8"))
+            self._sha1_hash = hk.hexdigest()
+        return self._sha1_hash
 
     @property
     def has_start_capture_meta(self):
@@ -552,13 +563,22 @@ class LdrPart(LdrObj):
         return " ".join(s)
 
     def __hash__(self):
-        return hash(self.name, self.colour.code, self.path, str(self.pos))
+        return hash(str(self.raw), str(self.path))
 
     def __eq__(self, other):
         return self.is_identical(other)
 
     def __ne__(self, other):
         return not self.is_identical(other)
+
+    @property
+    def sha1_hash(self):
+        if self._sha1_hash is None:
+            hk = hashlib.sha1()
+            hk.update(bytes(str(self.raw), encoding="utf8"))
+            hk.update(bytes(str("%s" % (self.path)), encoding="utf8"))
+            self._sha1_hash = hk.hexdigest()
+        return self._sha1_hash
 
     @property
     def is_part(self):

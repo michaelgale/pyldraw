@@ -44,6 +44,27 @@ TEST_GROUPB = """
 0 NOFILE
 """
 
+TEST_GROUPC = """
+0 FILE submodel3.ldr
+0 untitled model
+0 Name: submodel3.ldr
+0 Author: Michael Gale
+1 28 0 0 0 1 0 0 0 1 0 -0 0 1 3031.dat
+1 0 0 -8 0 1 0 0 0 1 0 -0 0 1 3068b.dat
+1 28 0 0 0 1 0 0 0 1 0 -0 0 1 3031.dat
+1 28 20 0 0 1 0 0 0 1 0 -0 0 1 3031.dat
+1 28 40 0 0 1 0 0 0 1 0 -0 0 1 3031.dat
+0 STEP
+1 70 -30 -8 -30 1 0 0 0 1 0 -0 0 1 2420.dat
+1 70 -30 -8 30 -0 0 1 0 1 0 -1 0 -0 submodel1.ldr
+1 70 30 -8 30 -1 0 0 0 1 0 -0 0 -1 2420.dat
+1 70 30 -8 -30 0 0 -1 0 1 0 1 0 0 2420.dat
+0 STEP
+1 14 0 -32 30 -1 0 0 0 1 0 -0 0 -1 big assembly.mpd
+0 STEP
+0 NOFILE
+"""
+
 MA = LdrModel.from_str(TEST_GROUPA, "GroupA")
 for i, s in enumerate(MA.steps):
     if not i % 2 == 0:
@@ -53,6 +74,10 @@ GA = [o for o in MA.iter_objs()]
 MB = LdrModel.from_str(TEST_GROUPB, "GroupB")
 MB.assign_path_to_objs("0/groupb")
 GB = [o for o in MB.iter_objs()]
+
+MC = LdrModel.from_str(TEST_GROUPC, "GroupC")
+MC.assign_path_to_objs("0/groupc")
+GC = [o for o in MC.iter_objs()]
 
 
 def test_filter():
@@ -104,18 +129,25 @@ def test_filter():
 
     x = obj_rename(GB, new_name="3666.dat", name="3010")
     assert sum([1 if o.part_name == "3666.dat" else 0 for o in x]) == 1
-
     x = obj_rename(GB, new_name="3666.dat", name="3010", colour=14)
     assert sum([1 if o.part_name == "3666.dat" else 0 for o in x]) == 1
-
     x = obj_rename(GB, new_name="3666.dat", name="3010", colour=15)
     assert sum([1 if o.part_name == "3666.dat" else 0 for o in x]) == 0
 
     x = filter_objs(GB, part_key="3010-14")
     assert len(x) == 1
-
     x = filter_objs(GB, part_key="3010-15")
     assert len(x) == 0
+
+    x = filter_objs(GC, is_model=True)
+    assert len(x) == 2
+    x = filter_objs(GC, is_model=False)
+    assert len(x) == 8
+
+    x = filter_objs(GC, is_part=True)
+    assert len(x) == 8
+    x = filter_objs(GC, is_part=False)
+    assert len(x) == 2
 
 
 def test_bool_ops():

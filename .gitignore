@@ -1,8 +1,9 @@
 # python intermediate files
 *.py[cod]
 
-# intermediate and cached 3D solid files
+# intermediate and cached test files
 /cache/*
+/tests/outimages/*.png
 
 # editors
 /.vscode

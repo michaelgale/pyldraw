@@ -33,11 +33,13 @@ def filter_objs(
     as_mask=False,
     obj_type=None,
     is_part=None,
+    is_model=None,
     part_key=None,
     name=None,
     meta_key=None,
     colour=None,
     path=None,
+    sha1_hash=None,
 ):
     x = [True] * len(a)
     if obj_type is not None:
@@ -53,13 +55,20 @@ def filter_objs(
         x = [xo and o.matched_path(path) for xo, o in zip(x, a)]
     if is_part is not None:
         x = [
-            xo and (bool(o.part_name) if isinstance(o, LdrPart) else False)
+            xo and (o.is_part == is_part if isinstance(o, LdrPart) else False)
+            for xo, o in zip(x, a)
+        ]
+    if is_model is not None:
+        x = [
+            xo and (o.is_model == is_model if isinstance(o, LdrPart) else False)
             for xo, o in zip(x, a)
         ]
     if part_key is not None:
         x = [xo and o.part_key == part_key for xo, o in zip(x, a)]
     if name is not None:
         x = [xo and o.matched_name(name) for xo, o in zip(x, a)]
+    if sha1_hash is not None:
+        x = [xo and o.sha1_hash == sha1_hash for xo, o in zip(x, a)]
     if as_mask:
         return x
     return [o for o, mask in zip(a, x) if mask]
