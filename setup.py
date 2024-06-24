@@ -49,11 +49,11 @@ setuptools.setup(
     ],
     install_requires=required,
     dependency_links=dependency_links,
-    entry_points={
+    # entry_points={
             # "console_scripts": [
             #     "gridfinitybox=cqgridfinity.scripts.gridfinitybox:main",
             #     "gridfinitybase=cqgridfinity.scripts.gridfinitybase:main",
             #     "ruggedbox=cqgridfinity.scripts.ruggedbox:main",
             # ],
-        },    
+        # },    
 )

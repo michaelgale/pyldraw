@@ -95,12 +95,6 @@ class LdrModel:
             steps.append(build_step)
         return steps
 
-    def assign_path_to_objs(self, path):
-        """Assigns each LdrObj in this model with a path reference describing
-        the object's position in the overall model hierarchy."""
-        for step in self.steps:
-            step.assign_path_to_objs(path)
-
     @staticmethod
     def from_str(s, name=None):
         """Retuns a LdrModel object based on parsing an LDraw string representing

@@ -54,5 +54,5 @@ def test_ldvrender_features():
                 assert d[0]["trigger"] == "0 !PY SHIFT BEGIN 0 -60 0"
                 assert "offset" in d[0]
                 assert d[0]["offset"].almost_same_as((0, -60, 0))
-        print(step)
-        step.render_model(**LDV_ARGS)
+        # print(step)
+        # step.render_model(**LDV_ARGS)

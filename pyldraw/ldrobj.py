@@ -61,7 +61,7 @@ class LdrObj:
                 self.__dict__[k] = v
 
     def __repr__(self) -> str:
-        return "%s(%s:%s)" % (self.__class__.__name__, self.path, str(self))
+        return "%s(%s: %s)" % (self.__class__.__name__, self.path, str(self))
 
     def copy(self):
         if isinstance(self, LdrComment):

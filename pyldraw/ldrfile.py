@@ -46,14 +46,9 @@ class UnwrapCtx:
         self.qty = 0
         self.model_objs = []
         self.aspect = Vector(0, 0, 0)
-        self.path = None
         for k, v in kwargs.items():
             if k in self.__dict__:
                 self.__dict__[k] = v
-        if self.path is not None:
-            self.path = self.path + "/" + self.model_name
-        else:
-            self.path = self.model_name
 
 
 class LdrFile:
@@ -188,7 +183,6 @@ class LdrFile:
             ctx = UnwrapCtx("root", self.root, aspect=Vector(self.initial_aspect))
             unwrapped = []
         for step in ctx.model.build_steps(self.models):
-            step.assign_path_to_objs(ctx.path)
             if len(step.sub_models) > 0:
                 for name, qty in step.sub_models.items():
                     new_ctx = UnwrapCtx(
@@ -198,7 +192,6 @@ class LdrFile:
                         level=ctx.level + 1,
                         qty=qty,
                         aspect=ctx.aspect,
-                        path=ctx.path,
                     )
                     _, new_idx = self.unwrap_build_steps(
                         ctx=new_ctx,

@@ -71,13 +71,12 @@ for i, s in enumerate(MA.steps):
         for o in s.objs:
             o.path = "0/groupa"
 GA = [o for o in MA.iter_objs()]
+
 MB = LdrModel.from_str(TEST_GROUPB, "GroupB")
-MB.assign_path_to_objs("0/groupb")
-GB = [o for o in MB.iter_objs()]
+GB = [o.new_path("0/groupb") for o in MB.iter_objs()]
 
 MC = LdrModel.from_str(TEST_GROUPC, "GroupC")
-MC.assign_path_to_objs("0/groupc")
-GC = [o for o in MC.iter_objs()]
+GC = [o.new_path("0/groupc") for o in MC.iter_objs()]
 
 
 def test_filter():

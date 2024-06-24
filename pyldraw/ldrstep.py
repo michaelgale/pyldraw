@@ -76,38 +76,6 @@ class LdrStep:
             yield o
 
     @property
-    def delimited_objs(self):
-        """Captures objects in a step which are between BEGIN/END delimiters.
-        This can be useful for extracting objects which are marked for
-        exclusion in a parts list, or objects added by LSYNTH, etc.
-        A list of dictionaries is returned with the dictionary containing
-        keys for the LDraw line that triggered the capture and a list of parts
-        associated with the capture."""
-        if not self._delimited is None:
-            return self._delimited
-        delimited = []
-        group = {}
-        is_captured = False
-        for o in self.objs:
-            if o.has_start_capture_meta and not is_captured:
-                is_captured = True
-                group["trigger"] = o.raw
-                group["objs"] = []
-            elif o.has_end_capture_meta and is_captured:
-                delimited.append(group)
-                group = {}
-                is_captured = False
-            elif is_captured:
-                group["objs"].append(o)
-        for d in delimited:
-            if "!PY SHIFT" in d["trigger"]:
-                vals = d["trigger"].split()[4:7]
-                vals = [quantize(v) for v in vals]
-                d["offset"] = safe_vector(vals)
-        self._delimited = delimited
-        return self._delimited
-
-    @property
     def part_qty(self):
         return sum(v for _, v in self.parts.items())
 
@@ -137,8 +105,43 @@ class LdrStep:
                 self._parts.update([o.part_key])
         return self._parts
 
-    def assign_path_to_objs(self, path):
-        self.objs = [o.new_path(path) for o in self.objs]
+    @property
+    def delimited_objs(self):
+        """Captures objects in a step which are between BEGIN/END delimiters.
+        This can be useful for extracting objects which are marked for
+        exclusion in a parts list, or objects added by LSYNTH, etc.
+        A list of dictionaries is returned with the dictionary containing
+        keys for the LDraw line that triggered the capture and a list of parts
+        associated with the capture."""
+        if not self._delimited is None:
+            return self._delimited
+        delimited = []
+        group = {}
+        is_captured = False
+        # if we're a BuildStep then we need to use our post-processed objects
+        # stored in 'step_objs' rather than the raw objects stored in 'objs'
+        if isinstance(self, BuildStep):
+            objs = self.step_objs
+        else:
+            objs = self.objs
+        for o in objs:
+            if o.has_start_capture_meta and not is_captured:
+                is_captured = True
+                group["trigger"] = o.raw
+                group["objs"] = []
+            elif o.has_end_capture_meta and is_captured:
+                delimited.append(group)
+                group = {}
+                is_captured = False
+            elif is_captured:
+                group["objs"].append(o)
+        for d in delimited:
+            if "!PY SHIFT" in d["trigger"]:
+                vals = d["trigger"].split()[4:7]
+                vals = [quantize(v) for v in vals]
+                d["offset"] = safe_vector(vals)
+        self._delimited = delimited
+        return self._delimited
 
 
 class BuildStep(LdrStep):
@@ -240,6 +243,7 @@ class BuildStep(LdrStep):
         aspect = Vector(self.aspect)
         self._step_objs = None
         self._model_objs = None
+        self._delimited = None
         objs = recursive_unwrap_model(self, sub_models)
         self._step_objs = [o.rotated_by(aspect) for o in objs]
         if model_objs is not None:
@@ -257,7 +261,7 @@ class BuildStep(LdrStep):
         return self._model_objs
 
     def _shifted_objs(self, only_for_step=True):
-        """Ensures objects that are shifted by delimiter meta lines are transformed to
+        """Ensures objects that captured between delimiter meta lines are transformed to
         their correct position."""
         if only_for_step:
             objs = filter_objs(self.step_objs, is_part=True)
@@ -266,10 +270,12 @@ class BuildStep(LdrStep):
         shift_objs = []
         for d in self.delimited_objs:
             for obj in d["objs"]:
-                if obj.is_part:
-                    dobjs = filter_objs(objs, sha1_hash=obj.sha1_hash)
-                else:
+                # if obj is a sub-model part, then use the path to filter objects
+                # otherwise, simply use the sha1_hash attribute
+                if isinstance(obj, LdrPart) and obj.is_model:
                     dobjs = filter_objs(objs, path=obj.path)
+                else:
+                    dobjs = filter_objs(objs, sha1_hash=obj.sha1_hash)
                 objs = obj_difference(objs, dobjs)
                 shift_objs.extend([o.transformed(offset=d["offset"]) for o in dobjs])
         return obj_union(objs, shift_objs)
