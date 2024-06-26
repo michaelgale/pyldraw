@@ -161,6 +161,8 @@ class BuildStep(LdrStep):
         self.pos = Vector(0, 0, 0)
         self.idx = None
         self.level = None
+        self.qty = 1
+        self.model_name = None
         self.dpi = DEFAULT_DPI
         self.outline_width = 3
         self.outline_colour = LdrColour(14)
@@ -195,7 +197,7 @@ class BuildStep(LdrStep):
         else:
             model_state = " "
         return (
-            "STEP: %3d%s level: %1d%s%s step-parts: %3d model-parts: %4d scale: %.2f aspect: %s "
+            "Step: %3d%s level %1d%s%s step-parts: %3d model-parts: %4d scale %.2f aspect %-11s qty: %d '%s'"
             % (
                 self.idx,
                 indent,
@@ -206,6 +208,8 @@ class BuildStep(LdrStep):
                 len(self.model_parts),
                 self.scale,
                 vector_str(self.aspect),
+                self.qty,
+                strip_part_ext(self.model_name),
             )
         )
 
@@ -232,7 +236,7 @@ class BuildStep(LdrStep):
             self._sha1_hash = hk.hexdigest()
         return self._sha1_hash
 
-    def unwrap(self, sub_models, model_objs=None, model_name=None):
+    def unwrap(self, sub_models, model_objs=None):
         """Unwraps any sub-model references in this step into parts translated
         to the correct position and orientation in the model."""
         # reset containers
@@ -248,7 +252,7 @@ class BuildStep(LdrStep):
             self.scale = self.new_scale
         aspect = Vector(self.aspect)
         # unwrap the objects from sub-model hierarchy
-        name = strip_part_ext(model_name) if model_name is not None else None
+        name = strip_part_ext(self.model_name) if self.model_name is not None else None
         objs = recursive_unwrap_model(self, sub_models, path=name)
         self._step_objs = [o.rotated_by(aspect) for o in objs]
         if model_objs is not None:
@@ -555,7 +559,7 @@ def recursive_unwrap_model(
             p = assign_part_path(p, obj.model_part_name, path_names=all_paths)
             obj.path = p
             all_paths.append(p)
-            _ = recursive_unwrap_model(
+            objects = recursive_unwrap_model(
                 submodel,
                 submodels,
                 objects,

@@ -45,12 +45,12 @@ def test_ldvrender_file():
 
 def test_ldvrender_features():
     f2 = LdrFile(FN_LDR2, dpi=LDV_ARGS["dpi"], initial_aspect=(-35, -35, 0))
-    # for step in f2.iter_root_steps():
+    # for step in f2.iter_steps():
     #     print(step)
-    # for o in step.step_parts:
-    #     print(step.idx, step.level, repr(o))
+    #     for o in step.step_parts:
+    #         print(step.idx, step.level, repr(o))
     for i, step in enumerate(f2.iter_steps()):
-        # print(step)
+        print(step)
         if step.delimited_objs:
             d = step.delimited_objs
             if i == 1:

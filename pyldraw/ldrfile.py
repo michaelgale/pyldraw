@@ -195,6 +195,8 @@ class LdrFile:
             unwrapped = []
         for step in ctx.model.build_steps(self.models):
             if len(step.sub_models) > 0:
+                # this step has one or more references to submodels
+                # recursively unwrap each unique submodel
                 for name, qty in step.sub_models.items():
                     new_ctx = UnwrapCtx(
                         name,
@@ -215,9 +217,7 @@ class LdrFile:
                 dpi=self.dpi,
                 **ctx.__dict__,
             )
-            build_step.unwrap(
-                self.models, model_objs=ctx.model_objs, model_name=ctx.model_name
-            )
+            build_step.unwrap(self.models, model_objs=ctx.model_objs)
             ctx.aspect = build_step.aspect
             ctx.scale = build_step.scale
             if build_step.rotation_end:
