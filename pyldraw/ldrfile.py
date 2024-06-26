@@ -166,6 +166,11 @@ class LdrFile:
         for step in self.build_steps:
             yield step
 
+    def iter_root_steps(self):
+        for step in self.build_steps:
+            if step.level == 0:
+                yield step
+
     def iter_model(self):
         """Iterates through snapshots of the build model at each build step.
         A list of LdrPart objects is returned representing the model state."""
@@ -210,7 +215,9 @@ class LdrFile:
                 dpi=self.dpi,
                 **ctx.__dict__,
             )
-            build_step.unwrap(self.models, model_objs=ctx.model_objs)
+            build_step.unwrap(
+                self.models, model_objs=ctx.model_objs, model_name=ctx.model_name
+            )
             ctx.aspect = build_step.aspect
             ctx.scale = build_step.scale
             if build_step.rotation_end:

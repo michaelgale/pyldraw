@@ -232,7 +232,7 @@ class BuildStep(LdrStep):
             self._sha1_hash = hk.hexdigest()
         return self._sha1_hash
 
-    def unwrap(self, sub_models, model_objs=None):
+    def unwrap(self, sub_models, model_objs=None, model_name=None):
         """Unwraps any sub-model references in this step into parts translated
         to the correct position and orientation in the model."""
         # reset containers
@@ -248,10 +248,13 @@ class BuildStep(LdrStep):
             self.scale = self.new_scale
         aspect = Vector(self.aspect)
         # unwrap the objects from sub-model hierarchy
-        objs = recursive_unwrap_model(self, sub_models)
+        name = strip_part_ext(model_name) if model_name is not None else None
+        objs = recursive_unwrap_model(self, sub_models, path=name)
         self._step_objs = [o.rotated_by(aspect) for o in objs]
         if model_objs is not None:
-            objs = recursive_unwrap_model(self, sub_models, objects=model_objs)
+            objs = recursive_unwrap_model(
+                self, sub_models, objects=model_objs, path=name
+            )
             self._model_objs = [o.rotated_by(aspect) for o in objs]
 
     @property
@@ -552,7 +555,7 @@ def recursive_unwrap_model(
             p = assign_part_path(p, obj.model_part_name, path_names=all_paths)
             obj.path = p
             all_paths.append(p)
-            recursive_unwrap_model(
+            _ = recursive_unwrap_model(
                 submodel,
                 submodels,
                 objects,

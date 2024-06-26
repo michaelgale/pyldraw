@@ -45,6 +45,10 @@ def test_ldvrender_file():
 
 def test_ldvrender_features():
     f2 = LdrFile(FN_LDR2, dpi=LDV_ARGS["dpi"], initial_aspect=(-35, -35, 0))
+    # for step in f2.iter_root_steps():
+    #     print(step)
+    # for o in step.step_parts:
+    #     print(step.idx, step.level, repr(o))
     for i, step in enumerate(f2.iter_steps()):
         # print(step)
         if step.delimited_objs:
@@ -63,8 +67,8 @@ def test_ldvrender_features():
 
 # def test_ldvrender_big():
 #     f1 = LdrFile("./tests/testfiles/Cafe2_clean.ldr", dpi=LDV_ARGS["dpi"], initial_aspect=(-35, 35, 0))
-    # f1.print_bom()
-    # for i, step in enumerate(f1.iter_steps()):
-    #     print(step)
-        # if i < 50:
-        #     step.render_model(**LDV_ARGS)
+# f1.print_bom()
+# for i, step in enumerate(f1.iter_steps()):
+#     print(step)
+# if i < 50:
+#     step.render_model(**LDV_ARGS)

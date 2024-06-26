@@ -32,7 +32,6 @@ class LdrArrow:
     def __init__(self, **kwargs):
         self.colour = LdrColour()
         self.border_colour = None
-        self.matrix = Matrix.identity()
         self.tip_pos = Vector(0, 0, 0)
         self.tail_pos = Vector(0, 0, 0)
         self.tip_length = 16
