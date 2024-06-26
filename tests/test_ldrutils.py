@@ -2,6 +2,7 @@
 
 from rich import print
 from pyldraw import *
+from pyldraw.geometry import BoundBox, Vector
 
 TEST_GROUPA = """
 0 FILE submodel1.ldr
@@ -191,3 +192,107 @@ def test_geo_ops():
 
     y = obj_exclusive(z, x)
     assert len(y) == 0
+
+
+def test_bound_box():
+    pts = [(-1, 2, 3), (3, 16, 32), (1.5, 7, -13)]
+    bb = BoundBox.from_pts(pts)
+    assert bb.xmin == -1
+    assert bb.xmax == 3
+    assert bb.ymin == 2
+    assert bb.ymax == 16
+    assert bb.zmin == -13
+    assert bb.zmax == 32
+    assert bb.xlen == 4
+    assert bb.ylen == 14
+    assert bb.zlen == 45
+
+    pts = [Vector(-5, 1, 0), Vector(16, -7, 32), Vector(1.5, 7, -13)]
+    bb = BoundBox.from_pts(pts)
+    assert bb.xmin == -5
+    assert bb.xmax == 16
+    assert bb.ymin == -7
+    assert bb.ymax == 7
+    assert bb.zmin == -13
+    assert bb.zmax == 32
+    assert bb.xlen == 21
+    assert bb.ylen == 14
+    assert bb.zlen == 45
+
+    other = (-50, 0, 100)
+    bb = bb.union(other)
+    assert bb.xmin == -50
+    assert bb.xmax == 16
+    assert bb.ymin == -7
+    assert bb.ymax == 7
+    assert bb.zmin == -13
+    assert bb.zmax == 100
+    assert bb.xlen == 66
+    assert bb.ylen == 14
+    assert bb.zlen == 113
+
+    bb = bb.union(Vector(-51, 18, 101))
+    assert bb.xmin == -51
+    assert bb.xmax == 16
+    assert bb.ymin == -7
+    assert bb.ymax == 18
+    assert bb.zmin == -13
+    assert bb.zmax == 101
+    assert bb.xlen == 67
+    assert bb.ylen == 25
+    assert bb.zlen == 114
+
+    q1 = LdrQuad.from_size(Vector(500, 0, 0), Vector(0, 400, 0))
+    assert q1.bound_box.xmin == -250
+    assert q1.bound_box.xmax == 250
+    assert q1.bound_box.ymin == -200
+    assert q1.bound_box.ymax == 200
+    assert q1.bound_box.zmin == 0
+    assert q1.bound_box.zmax == 0
+    assert q1.bound_box.xlen == 500
+    assert q1.bound_box.ylen == 400
+    assert q1.bound_box.zlen == 0
+
+    bb = bb.union(q1.points)
+    assert bb.xmin == -250
+    assert bb.xmax == 250
+    assert bb.ymin == -200
+    assert bb.ymax == 200
+    assert bb.zmin == -13
+    assert bb.zmax == 101
+    assert bb.xlen == 500
+    assert bb.ylen == 400
+    assert bb.zlen == 114
+
+    p1 = LdrPart(name="3001.dat", pos=(10, -50, 30))
+    assert p1.bound_box.xmin == 10
+    assert p1.bound_box.xmax == 10
+    assert p1.bound_box.ymin == -50
+    assert p1.bound_box.ymax == -50
+    assert p1.bound_box.zmin == 30
+    assert p1.bound_box.zmax == 30
+    assert p1.bound_box.xlen == 0
+    assert p1.bound_box.ylen == 0
+    assert p1.bound_box.zlen == 0
+
+    bb = MA.bound_box
+    assert bb.xmin == -30
+    assert bb.xmax == 30
+    assert bb.ymin == -32
+    assert bb.ymax == 0
+    assert bb.zmin == -30
+    assert bb.zmax == 30
+    assert bb.xlen == 60
+    assert bb.ylen == 32
+    assert bb.zlen == 60
+
+    bb1 = bb.translated((1, -2, 3))
+    assert bb1.xmin == -29
+    assert bb1.xmax == 31
+    assert bb1.ymin == -34
+    assert bb1.ymax == -2
+    assert bb1.zmin == -27
+    assert bb1.zmax == 33
+    assert bb1.xlen == 60
+    assert bb1.ylen == 32
+    assert bb1.zlen == 60

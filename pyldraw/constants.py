@@ -389,3 +389,13 @@ MASKED_OUT_COLOUR = 502
 NON_MASKED_COLOUR = 599
 ADDED_PARTS_COLOUR = 598
 ADDED_PARTS_HSV_HUE = 150
+
+# 0 !COLOUR TrueBlack                                             CODE 500   VALUE #05131D   EDGE #05131D
+# 0 !COLOUR TrueWhite                                             CODE 501   VALUE #FFFFFF   EDGE #FFFFFF
+# 0 !COLOUR TrueClear                                             CODE 502   VALUE #80FF80   EDGE #20FF20   ALPHA 2
+# 0 !COLOUR MaskClear                                             CODE 599   VALUE #20FF20   EDGE #20FF20
+# 0 !COLOUR MaskAdded                                             CODE 598   VALUE #901F76   EDGE #901F76   LUMINANCE 100
+
+# 0 !COLOUR ArrowRed                                              CODE 804   VALUE #FF0000   EDGE #FF0000   LUMINANCE 200
+# 0 !COLOUR ArrowBlue                                             CODE 801   VALUE #0830FF   EDGE #0830FF   LUMINANCE 200
+# 0 !COLOUR ArrowGreen                                            CODE 802   VALUE #08B010   EDGE #08B010   LUMINANCE 200

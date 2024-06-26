@@ -46,6 +46,7 @@ class UnwrapCtx:
         self.qty = 0
         self.model_objs = []
         self.aspect = Vector(0, 0, 0)
+        self.scale = 1.0
         for k, v in kwargs.items():
             if k in self.__dict__:
                 self.__dict__[k] = v
@@ -109,6 +110,8 @@ class LdrFile:
             c.update([o.part_key])
         c = c.most_common()
         for k, v in c:
+            if k is None:
+                continue
             ks = k.split("-")
             colour = LdrColour(int(ks[1]))
             if any(x in colour.name for x in ("Black", "Brown", "Dark")):
@@ -192,6 +195,7 @@ class LdrFile:
                         level=ctx.level + 1,
                         qty=qty,
                         aspect=ctx.aspect,
+                        scale=ctx.scale,
                     )
                     _, new_idx = self.unwrap_build_steps(
                         ctx=new_ctx,
@@ -200,18 +204,15 @@ class LdrFile:
                     ctx.idx = new_idx
             build_step = BuildStep(
                 objs=step.objs,
-                idx=ctx.idx,
-                level=ctx.level,
-                aspect=ctx.aspect,
                 dpi=self.dpi,
+                **ctx.__dict__,
             )
             build_step.unwrap(self.models, model_objs=ctx.model_objs)
-            if build_step.rotation_relative:
-                ctx.aspect += build_step.rotation_relative
-            elif build_step.rotation_absolute:
-                ctx.aspect = build_step.rotation_absolute
-            elif build_step.rotation_end:
+            ctx.aspect = build_step.aspect
+            ctx.scale = build_step.scale
+            if build_step.rotation_end:
                 ctx.aspect = Vector(self.initial_aspect)
+                build_step.aspect = ctx.aspect
             unwrapped.append(build_step)
             ctx.idx += 1
         return unwrapped, ctx.idx

@@ -29,11 +29,12 @@ import inspect
 
 from rich import print
 
-from .geometry import Vector, Matrix, safe_vector
-from .ldrutils import *
-from .helpers import normalize_filename, strip_part_ext, quantize
 from pyldraw import *
 from pyldraw.support.imgutils import ImageMixin
+from .geometry import Vector, Matrix, safe_vector, BoundBox
+from .ldrutils import *
+from .helpers import normalize_filename, strip_part_ext, quantize, vector_str
+from .ldrarrow import LdrArrow
 
 
 class LdrStep:
@@ -134,9 +135,10 @@ class LdrStep:
                 group = {}
                 is_captured = False
             elif is_captured:
-                group["objs"].append(o)
+                if isinstance(o, LdrPart):
+                    group["objs"].append(o)
         for d in delimited:
-            if "!PY SHIFT" in d["trigger"]:
+            if "!PY ARROW" in d["trigger"]:
                 vals = d["trigger"].split()[4:7]
                 vals = [quantize(v) for v in vals]
                 d["offset"] = safe_vector(vals)
@@ -152,7 +154,7 @@ class BuildStep(LdrStep):
 
     def __init__(self, objs=None, **kwargs):
         super().__init__(objs, **kwargs)
-        self.scale = 1
+        self.scale = 1.0
         self.aspect = Vector(0, 0, 0)
         self.pos = Vector(0, 0, 0)
         self.idx = None
@@ -169,6 +171,8 @@ class BuildStep(LdrStep):
         self._step_objs = None
         # hash code for detecting changes in model state
         self._sha1_hash = None
+        self._model_bound_box = None
+        self._step_bound_box = None
 
     def __repr__(self) -> str:
         return "%s(%d step objects)" % (self.__class__.__name__, len(self.step_objs))
@@ -176,7 +180,7 @@ class BuildStep(LdrStep):
     def __rich__(self):
         s = []
         s.append(
-            "STEP: %3d level: %1d objs: %3d/%3d parts: %3d/%3d aspect: %s"
+            "STEP: %3d level: %1d objs: %3d/%4d parts: %3d/%4d aspect: %s"
             % (
                 self.idx,
                 self.level,
@@ -184,7 +188,7 @@ class BuildStep(LdrStep):
                 len(self.model_objs),
                 len(self.step_parts),
                 len(self.model_parts),
-                self.aspect,
+                vector_str(self.aspect),
             )
         )
         return "\n".join(s)
@@ -240,10 +244,19 @@ class BuildStep(LdrStep):
     def unwrap(self, sub_models, model_objs=None):
         """Unwraps any sub-model references in this step into parts translated
         to the correct position and orientation in the model."""
-        aspect = Vector(self.aspect)
+        # reset containers
         self._step_objs = None
         self._model_objs = None
         self._delimited = None
+        # apply new aspect angles and scale
+        if self.rotation_relative:
+            self.aspect += self.rotation_relative
+        elif self.rotation_absolute:
+            self.aspect = self.rotation_absolute
+        elif self.new_scale:
+            self.scale = self.new_scale
+        aspect = Vector(self.aspect)
+        # unwrap the objects from sub-model hierarchy
         objs = recursive_unwrap_model(self, sub_models)
         self._step_objs = [o.rotated_by(aspect) for o in objs]
         if model_objs is not None:
@@ -268,6 +281,7 @@ class BuildStep(LdrStep):
         else:
             objs = filter_objs(self.model_objs, is_part=True)
         shift_objs = []
+
         for d in self.delimited_objs:
             for obj in d["objs"]:
                 # if obj is a sub-model part, then use the path to filter objects
@@ -277,8 +291,26 @@ class BuildStep(LdrStep):
                 else:
                     dobjs = filter_objs(objs, sha1_hash=obj.sha1_hash)
                 objs = obj_difference(objs, dobjs)
-                shift_objs.extend([o.transformed(offset=d["offset"]) for o in dobjs])
+                offset = (
+                    Vector(d["offset"])
+                    * Matrix.euler_to_rot_matrix(self.aspect).transpose()
+                )
+                dobjs = [o.translated(offset) for o in dobjs]
+                shift_objs.extend(dobjs)
+
+            shift_objs.extend(self.arrows_for_offset(shift_objs, d["offset"]))
         return obj_union(objs, shift_objs)
+
+    def arrows_for_offset(self, objs, offset):
+        if len(objs) > 0:
+            bb = self.bound_box(objs)
+            arrow = LdrArrow(colour=804)
+            arrow.aspect = Vector(self.aspect)
+            arrow.set_from_offset_bound_box(bb, offset)
+            aobjs = [o.new_path("arrow") for o in arrow.arrow_objs()]
+            return [o.rotated_by(self.aspect) for o in aobjs]
+        else:
+            return []
 
     @property
     def step_parts(self):
@@ -290,23 +322,35 @@ class BuildStep(LdrStep):
         """Returns a list of LdrPart objects representing the total model at this step."""
         return self._shifted_objs(only_for_step=False)
 
+    def bound_box(self, parts):
+        """Returns the bounding box of the model at this step."""
+        from .ldrmodel import LdrModel
+
+        rot = Matrix.euler_to_rot_matrix(Vector(self.aspect))
+        bb = BoundBox()
+        for o in parts:
+            m = LdrModel.from_part(o.name)
+            pos = Vector(o.pos) * rot
+            bb = bb.union(m.bound_box.translated(pos))
+        return bb
+
+    @property
+    def step_bound_box(self):
+        if self._step_bound_box is None:
+            self._step_bound_box = self.bound_box(self.step_parts)
+        return self._step_bound_box
+
+    @property
+    def model_bound_box(self):
+        if self._model_bound_box is None:
+            self._model_bound_box = self.bound_box(self.model_parts)
+        return self._model_bound_box
+
     def iter_meta_objs(self):
         """Generator which iterates over step objects which represent meta commands"""
         for o in self.objs:
             if isinstance(o, LdrMeta):
                 yield o
-
-    def step_has_meta_command(self, attr=None):
-        """Looks for an LdrMeta object with a desired attribute.
-        Returns the attribute value or None."""
-        if attr is None:
-            attr = inspect.currentframe().f_back.f_code.co_name
-        for o in self.iter_meta_objs():
-            if attr in dir(o):
-                v = getattr(o, attr)
-                if v:
-                    return v
-        return None
 
     def render_model(self, **kwargs):
         """Renders an image of the model for this step."""
@@ -315,6 +359,7 @@ class BuildStep(LdrStep):
         if "dpi" in kwargs:
             kwargs["dpi"] = self.dpi
         ldv = LDViewRender(**kwargs)
+        ldv.set_scale(self.scale)
         ldv.render_from_parts(self.model_parts, fn)
         img = ImageMixin.pad_image(fn, self.outline_width)
         ImageMixin.save_image(fn, img)
@@ -322,7 +367,7 @@ class BuildStep(LdrStep):
     def render_outline_image(self, **kwargs):
         """Renders the model image with outlines drawn around new parts"""
         path = kwargs["output_path"]
-        unmasked = normalize_filename(self.unmasked_filenames[0][0], path)
+        unmasked = normalize_filename(self.masked_filenames[0][0], path)
         model = normalize_filename(self.model_filename(), path)
         outline = normalize_filename(self.outline_filename, path)
         img = ImageMixin.merge_with_outlines(
@@ -337,12 +382,17 @@ class BuildStep(LdrStep):
     def _render_maskable_image(self, fn, mask_colour, submodel=None, **kwargs):
         step_parts = filter_objs(self.step_parts, path=submodel)
         prev_parts = obj_difference(self.model_parts, step_parts)
-        prev_parts = obj_change_colour(prev_parts, mask_colour)
+        prev_parts = obj_change_colour(prev_parts, mask_colour.code)
         new_parts = obj_change_colour(step_parts, ADDED_PARTS_COLOUR, path=submodel)
-        parts = obj_union(prev_parts, new_parts)
+        parts = [LdrMeta.from_colour(mask_colour)]
+        parts.append(LdrMeta.from_colour(LdrColour.ADDED_MASK()))
+        parts.extend(obj_union(prev_parts, new_parts))
+        arrows = filter_objs(parts, path="arrow")
+        parts = obj_difference(parts, arrows)
         if "dpi" in kwargs:
             kwargs["dpi"] = self.dpi
         ldv = LDViewRender(**kwargs)
+        ldv.set_scale(self.scale)
         ldv.lofi_settings()
         ldv.render_from_parts(parts, fn)
         img = ImageMixin.pad_image(fn, self.outline_width)
@@ -350,20 +400,20 @@ class BuildStep(LdrStep):
 
     def render_unmasked_image(self, **kwargs):
         """Renders the model image with all new parts in ADDED_PARTS_COLOUR and
-        all other parts in a transparent non masked colour"""
+        all other parts in a transparent NON_MASKED_COLOUR colour"""
         path = kwargs["output_path"]
         for fn, name in self.unmasked_filenames:
             fn = normalize_filename(fn, path)
-            self._render_maskable_image(fn, NON_MASKED_COLOUR, name, **kwargs)
+            self._render_maskable_image(fn, LdrColour.CLEAR_MASK(), name, **kwargs)
             # centroids = ImageMixin.get_centroids_of_hue(fn, ADDED_PARTS_HSV_HUE, area_thr=750, dim_thr=50)
 
     def render_masked_image(self, **kwargs):
         """Renders the model image with all new parts in ADDED_PARTS_COLOUR and
-        all other parts in an opaque masked colour"""
+        all other parts in an opaque MASKED_OUT_COLOUR colour"""
         path = kwargs["output_path"]
         for fn, name in self.masked_filenames:
             fn = normalize_filename(fn, path)
-            self._render_maskable_image(fn, MASKED_OUT_COLOUR, name, **kwargs)
+            self._render_maskable_image(fn, LdrColour.OPAQUE_MASK(), name, **kwargs)
             # centroids = ImageMixin.get_centroids_of_hue(fn, ADDED_PARTS_HSV_HUE, area_thr=750, dim_thr=50)
 
     def model_filename(self, suffix=None):
@@ -413,6 +463,18 @@ class BuildStep(LdrStep):
         for part in self.step_parts:
             part.render_image(**kwargs)
 
+    def step_has_meta_command(self, attr=None):
+        """Looks for an LdrMeta object with a desired attribute.
+        Returns the attribute value or None."""
+        if attr is None:
+            attr = inspect.currentframe().f_back.f_code.co_name
+        for o in self.iter_meta_objs():
+            if attr in dir(o):
+                v = getattr(o, attr)
+                if v:
+                    return v
+        return None
+
     @property
     def rotation_absolute(self):
         return self.step_has_meta_command()
@@ -433,10 +495,14 @@ class BuildStep(LdrStep):
     def end_of_model(self):
         return self.step_has_meta_command()
 
+    @property
+    def new_scale(self):
+        return self.step_has_meta_command()
+
 
 def assign_part_path(p, name=None, path_names=None):
-    """Assigns a unique path for a part in a submodel taking into account multiple
-    instances of a submodel"""
+    """Assigns a unique path for a part in a sub-model taking into account multiple
+    instances of a sub-model"""
     if p is None:
         return "root"
     if name is None:
@@ -475,7 +541,7 @@ def recursive_unwrap_model(
     path=None,
     path_names=None,
 ):
-    """Recursively parses an LDraw model plus any submodels and
+    """Recursively parses an LDraw model plus any sub-models and
     populates an object list representing that model.  To support selective
     parsing of only one submodel, only_submodel can be set to the desired
     submodel name."""

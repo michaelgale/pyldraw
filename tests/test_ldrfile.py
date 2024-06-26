@@ -56,7 +56,7 @@ TEST_MODEL3 = """
 0 Name: submodel1.ldr
 0 Author: Michael Gale
 1 28 0 0 0 1 0 0 0 1 0 -0 0 1 3031.dat
-0 !PY ARROW BEGIN
+0 !PY ARROW BEGIN 0 -50 0
 1 0 0 -8 0 1 0 0 0 1 0 -0 0 1 3068b.dat
 1 28 0 0 0 1 0 0 0 1 0 -0 0 1 3031.dat
 0 !PY ARROW END

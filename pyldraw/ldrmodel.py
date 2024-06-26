@@ -23,10 +23,13 @@
 #
 # LdrModel object class
 
+import os
+
 from collections import Counter
 
-from .geometry import Vector
+from .geometry import Vector, BoundBox, Matrix
 from pyldraw import *
+from .ldrlib import find_part
 
 
 class LdrModel:
@@ -36,6 +39,7 @@ class LdrModel:
     def __init__(self, name, **kwargs):
         self.name = name
         self.steps = []
+        self._bound_box = None
 
     def __repr__(self) -> str:
         return "%s(%s)" % (self.__class__.__name__, self.name)
@@ -51,6 +55,16 @@ class LdrModel:
         for step in self.steps:
             for obj in step.iter_objs():
                 yield obj
+
+    def iter_parts(self):
+        for o in self.iter_objs():
+            if isinstance(o, LdrPart):
+                yield o
+
+    def iter_primitives(self):
+        for o in self.iter_objs():
+            if isinstance(o, (LdrLine, LdrTriangle, LdrQuad)):
+                yield o
 
     @property
     def step_count(self):
@@ -83,6 +97,15 @@ class LdrModel:
     @property
     def sub_model_qty(self):
         return sum(s.sub_model_qty for s in self.steps)
+
+    @property
+    def bound_box(self):
+        if self._bound_box is None:
+            bb = BoundBox()
+            for o in self.iter_objs():
+                bb = bb.union(o.points)
+            self._bound_box = bb
+        return self._bound_box
 
     def build_steps(self, sub_models, at_aspect=None):
         """Unwraps steps into BuildStep objects which place objects at the
@@ -123,3 +146,81 @@ class LdrModel:
         m = LdrModel(name)
         m.steps = steps
         return m
+
+    @staticmethod
+    def from_file(filename):
+        """Retuns a LdrModel object based on parsing an the contents of an LDraw file"""
+        _, name = os.path.split(filename)
+        with open(filename, "rt") as fp:
+            lines = fp.readlines()
+        return LdrModel.from_str("\n".join(lines), name=name)
+
+    @staticmethod
+    def from_part(filename):
+        """Returns a LdrModel which represents the primitive geometry of a part.
+        This requires unwrapping the part and its subparts until all of the
+        primitive geometry is extracted.  The resulting LdrModel contains only
+        one step which includes all of the primitive objects to make the part."""
+        models = LdrModel.unwrap_part_submodels(file=filename)
+        objs = LdrModel.recursive_unwrap_part(models["root"], models)
+        m = LdrModel(name=filename)
+        step = LdrStep(objs)
+        m.steps = [step]
+        return m
+
+    @staticmethod
+    def unwrap_part_submodels(model=None, submodels=None, file=None):
+        """Recursively unwrap a part to discover all of the sub-model parts in
+        the part hierarchy.  A dictionary is returned with the keys representing
+        the part names and the values containing LdrModel objects.  This dictionary
+        can then be used to traverse a part hierarchy (starting with the "root" object)
+        to unwrap the primitive objects representing its geometry."""
+        if model is None:
+            fn = find_part(file)
+            m = LdrModel.from_file(fn)
+        else:
+            m = model
+        sm = submodels if submodels is not None else {"root": m}
+        for p in m.iter_parts():
+            fn = find_part(p.name)
+            if fn is not None:
+                if p.name not in sm:
+                    next_model = LdrModel.from_file(fn)
+                    sm = LdrModel.unwrap_part_submodels(model=next_model, submodels=sm)
+                    sm[p.name] = next_model
+        return sm
+
+    @staticmethod
+    def recursive_unwrap_part(
+        model,
+        submodels,
+        objects=None,
+        offset=None,
+        matrix=None,
+    ):
+        """Recursively parses an LDraw part plus any submodels and
+        populates an object list representing the primitives for the part.
+        """
+        o = offset if offset is not None else Vector(0, 0, 0)
+        m = matrix if matrix is not None else Matrix.identity()
+        if objects is None:
+            objects = []
+        for obj in model.iter_objs():
+            if obj.part_name in submodels:
+                submodel = submodels[obj.part_name]
+                new_matrix = m * obj.matrix
+                new_loc = m * obj.pos
+                new_loc += o
+                LdrModel.recursive_unwrap_part(
+                    submodel,
+                    submodels,
+                    objects,
+                    offset=new_loc,
+                    matrix=new_matrix,
+                )
+            else:
+                if obj.is_primitive:
+                    new_obj = obj.copy()
+                    new_obj = new_obj.transformed(matrix=m, offset=o)
+                    objects.append(new_obj)
+        return objects

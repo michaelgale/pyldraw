@@ -402,3 +402,99 @@ def safe_vector(v):
     elif isinstance(v, (float, int)):
         return Vector(v, v, v)
     return Vector(0, 0, 0)
+
+
+class BoundBox:
+    """A container class for representing the bounding box of a 3D object."""
+
+    __slots__ = ("xmin", "xmax", "ymin", "ymax", "zmin", "zmax")
+
+    def __init__(self, **kwargs):
+        self.xmin = None
+        self.xmax = None
+        self.ymin = None
+        self.ymax = None
+        self.zmin = None
+        self.zmax = None
+
+    def __str__(self):
+        s = []
+        s.append("BoundBox x: %f - %f (%f)" % (self.xmin, self.xmax, self.xlen))
+        s.append("         y: %f - %f (%f)" % (self.ymin, self.ymax, self.ylen))
+        s.append("         z: %f - %f (%f)" % (self.zmin, self.zmax, self.zlen))
+        return "\n".join(s)
+
+    @property
+    def xlen(self):
+        return self.xmax - self.xmin
+
+    @property
+    def ylen(self):
+        return self.ymax - self.ymin
+
+    @property
+    def zlen(self):
+        return self.zmax - self.zmin
+
+    @property
+    def size(self):
+        return (self.xlen, self.ylen, self.zlen)
+
+    @property
+    def centre(self):
+        return Vector(
+            self.xmin + self.xlen / 2,
+            self.ymin + self.ylen / 2,
+            self.zmin + self.zlen / 2,
+        )
+
+    def translated(self, pt):
+        pt = Vector(pt)
+        bb = copy.copy(self)
+        bb.xmin = bb.xmin + pt.x
+        bb.xmax = bb.xmax + pt.x
+        bb.ymin = bb.ymin + pt.y
+        bb.ymax = bb.ymax + pt.y
+        bb.zmin = bb.zmin + pt.z
+        bb.zmax = bb.zmax + pt.z
+        return bb
+
+    def union(self, other):
+        if isinstance(other, BoundBox):
+            pts = [
+                Vector(other.xmin, other.ymin, other.zmin),
+                Vector(other.xmax, other.ymax, other.zmax),
+            ]
+        elif isinstance(other, (tuple, list)):
+            if len(other) == 3 and isinstance(other[0], Number):
+                pts = [Vector(other)]
+            else:
+                if isinstance(other[0], (tuple, list, Vector)):
+                    pts = [Vector(v) for v in other]
+                else:
+                    pts = other
+        else:
+            pts = [Vector(other)]
+
+        if self.xmin is None:
+            self.xmin = pts[0].x
+            self.xmax = pts[0].x
+            self.ymin = pts[0].y
+            self.ymax = pts[0].y
+            self.zmin = pts[0].z
+            self.zmax = pts[0].z
+
+        for pt in pts:
+            self.xmin = min(self.xmin, pt.x)
+            self.xmax = max(self.xmax, pt.x)
+            self.ymin = min(self.ymin, pt.y)
+            self.ymax = max(self.ymax, pt.y)
+            self.zmin = min(self.zmin, pt.z)
+            self.zmax = max(self.zmax, pt.z)
+
+        return self
+
+    @staticmethod
+    def from_pts(pts):
+        bb = BoundBox()
+        return bb.union(pts)

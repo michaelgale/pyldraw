@@ -25,7 +25,7 @@
 
 import hashlib
 
-from .geometry import Vector, Matrix, safe_vector
+from .geometry import Vector, Matrix, safe_vector, BoundBox
 from .helpers import quantize, vector_str, mat_str, rich_vector_str, strip_part_ext
 
 from pyldraw import *
@@ -113,6 +113,10 @@ class LdrObj:
         return False
 
     @property
+    def is_primitive(self):
+        return isinstance(self, (LdrLine, LdrTriangle, LdrQuad))
+
+    @property
     def model_part_name(self):
         if not isinstance(self, LdrPart):
             return None
@@ -186,17 +190,33 @@ class LdrObj:
     def point1(self):
         return self._pts[0]
 
+    @point1.setter
+    def point1(self, pt):
+        self._pts[0] = safe_vector(pt)
+
     @property
     def point2(self):
         return self._pts[1]
+
+    @point2.setter
+    def point2(self, pt):
+        self._pts[1] = safe_vector(pt)
 
     @property
     def point3(self):
         return self._pts[2]
 
+    @point3.setter
+    def point3(self, pt):
+        self._pts[2] = safe_vector(pt)
+
     @property
     def point4(self):
         return self._pts[3]
+
+    @point4.setter
+    def point4(self, pt):
+        self._pts[3] = safe_vector(pt)
 
     @property
     def points(self):
@@ -209,6 +229,10 @@ class LdrObj:
         elif isinstance(self, LdrQuad):
             return [pt for pt in self._pts[:4]]
         return [pt for pt in self._pts]
+
+    @property
+    def bound_box(self):
+        return BoundBox.from_pts(self.points)
 
     @property
     def points_str(self):
@@ -228,8 +252,7 @@ class LdrObj:
         self._pts = [safe_vector(pt) for pt in new_pts]
 
     def translate(self, offset):
-        for pt in self._pts:
-            pt += Vector(offset)
+        self._pts = [pt + Vector(offset) for pt in self._pts]
 
     def translated(self, offset):
         obj = self.copy()
@@ -406,6 +429,12 @@ class LdrMeta(LdrObj):
                 return True
         return None
 
+    @property
+    def new_scale(self):
+        if self.command == "!PY":
+            if "SCALE" in self.parameters:
+                return float(self.parameters.split()[-1])
+
     @staticmethod
     def from_str(s):
         split_line = s.split()
@@ -422,6 +451,21 @@ class LdrMeta(LdrObj):
             if k == obj.command:
                 obj.param_spec = v
         return obj
+
+    def from_colour(colour):
+        name = colour.label if colour.label is not None else "Colour_%d" % (colour.code)
+        edge = colour.edge if colour.edge is not None else colour.hex_code
+        s = []
+        s.append("0 !COLOUR %s" % (name))
+        s.append("CODE %d" % (colour.code))
+        s.append("VALUE %s" % (colour.hex_code))
+        s.append("EDGE %s" % (edge))
+        if colour.alpha is not None:
+            s.append("ALPHA %d" % (colour.alpha))
+        if colour.luminance is not None:
+            s.append("LUMINANCE %d" % (colour.luminance))
+        s = " ".join(s)
+        return LdrMeta.from_str(s)
 
 
 class LdrLine(LdrObj):
@@ -532,6 +576,23 @@ class LdrQuad(LdrObj):
         obj.raw = s
         obj.colour = int(split_line[1])
         obj.set_points(split_line[2:14])
+        return obj
+
+    @staticmethod
+    def from_size(length, width):
+        """Makes an LdrQuad object using with a length and width specification.
+        length and width are Vector objects with only either the x, y, or z value set.
+        The length will specify +/- length/2 in its axis direction.
+        The width will specify +/- width/2 in its axis direction"""
+        obj = LdrQuad()
+        l2 = abs(length) / 2
+        w2 = abs(width) / 2
+        dl = length.norm()
+        dw = width.norm()
+        obj.point1 = -l2 * dl - w2 * dw
+        obj.point2 = l2 * dl - w2 * dw
+        obj.point3 = l2 * dl + w2 * dw
+        obj.point4 = -l2 * dl + w2 * dw
         return obj
 
 

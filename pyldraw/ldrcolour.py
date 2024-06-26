@@ -35,13 +35,15 @@ class LdrColour:
       LDraw colour code, Bricklink colour code, colour name,
       RGB floating point, RGB hex"""
 
-    __slots__ = ("_code", "r", "g", "b")
-
     def __init__(self, colour=None, red=None, green=None, blue=None, **kwargs):
         self._code = LDR_DEF_COLOUR
         self.r = 0.0
         self.g = 0.0
         self.b = 0.0
+        self.alpha = None
+        self.luminance = None
+        self.label = None
+        self.edge = None
         if colour is not None:
             if isinstance(colour, int):
                 self.code = colour
@@ -59,6 +61,9 @@ class LdrColour:
         else:
             if red is not None and green is not None and blue is not None:
                 self.set_rgb(red, green, blue)
+        for k, v in kwargs.items():
+            if k in self.__dict__:
+                self.__dict__[k] = v
 
     def __repr__(self):
         return "%s(%s, r: %.2f g: %.2f b: %.2f, %s)" % (
@@ -74,7 +79,7 @@ class LdrColour:
         return str(self.code)
 
     def __rich__(self):
-        if self.code == 16 or self.code == 24:
+        if self.code == 16 or self.code == 24 or self.code not in LDR_COLOUR_NAME:
             return "[bold navajo_white1]%s" % (self.code)
         if self.code == "0":
             return "[bold]0"
@@ -135,12 +140,15 @@ class LdrColour:
     def code_to_rgb(code):
         if code in LDR_COLOUR_HEX:
             rgb = LDR_COLOUR_HEX[code]
-            [rd, gd, bd] = tuple(int(rgb[i : i + 2], 16) for i in (0, 2, 4))
-            r = float(rd) / 255.0
-            g = float(gd) / 255.0
-            b = float(bd) / 255.0
-            return r, g, b
-        return None
+        elif isinstance(code, str):
+            rgb = code.replace("#", "")
+        else:
+            return None
+        [rd, gd, bd] = tuple(int(rgb[i : i + 2], 16) for i in (0, 2, 4))
+        r = float(rd) / 255.0
+        g = float(gd) / 255.0
+        b = float(bd) / 255.0
+        return r, g, b
 
     @staticmethod
     def code_from_hex(val):
@@ -149,3 +157,39 @@ class LdrColour:
             if v.lower() == val.lower():
                 return k
         return None
+
+    @staticmethod
+    def CLEAR_MASK():
+        c = LdrColour(502, alpha=2)
+        c.set_rgb(LdrColour.code_to_rgb("#80FF80"))
+        return c
+
+    @staticmethod
+    def OPAQUE_MASK():
+        c = LdrColour(599)
+        c.set_rgb(LdrColour.code_to_rgb("#20FF20"))
+        return c
+
+    @staticmethod
+    def ADDED_MASK():
+        c = LdrColour(598, luminance=100)
+        c.set_rgb(LdrColour.code_to_rgb("#901F76"))
+        return c
+
+    @staticmethod
+    def ARROW_RED():
+        c = LdrColour(804, luminance=220)
+        c.set_rgb(LdrColour.code_to_rgb("#FF0000"))
+        return c
+
+    @staticmethod
+    def ARROW_BLUE():
+        c = LdrColour(801, luminance=220)
+        c.set_rgb(LdrColour.code_to_rgb("#0830FF"))
+        return c
+
+    @staticmethod
+    def ARROW_GREEN():
+        c = LdrColour(802, luminance=220)
+        c.set_rgb(LdrColour.code_to_rgb("#08C010"))
+        return c

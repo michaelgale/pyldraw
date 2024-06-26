@@ -2,6 +2,20 @@
 
 from rich import print
 from pyldraw import *
+from pyldraw.geometry import BoundBox
+
+
+IMG_PATH = "./tests/outimages/"
+
+LDV_ARGS = {
+    "overwrite": False,
+    "dpi": 300,
+    "auto_crop": False,
+    "output_path": IMG_PATH,
+    "log_output": False,
+    "log_level": 0,
+}
+LDV_ASPECT = (-35, -35, 0)
 
 
 def test_ldrobj_init():
@@ -68,3 +82,17 @@ def test_ldrpart():
     assert o1.is_model
     o3 = o1.transformed(offset=(-1, 2, -3))
     assert o3.pos == (9, -48, 17)
+
+
+def test_find_parts():
+    m1 = LdrModel.from_part("3001.dat")
+    prims = [o for o in m1.iter_primitives()]
+    assert len(prims) == 886
+    bb = m1.bound_box
+    assert bb.xlen == 80
+    assert bb.ylen == 28
+    assert bb.zlen == 40
+    prims = [p.rotated_by(LDV_ASPECT) for p in m1.iter_primitives()]
+    ldv = LDViewRender(**LDV_ARGS)
+    fn = m1.name + ".png"
+    ldv.render_from_parts(prims, fn)

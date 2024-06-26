@@ -34,6 +34,7 @@ def filter_objs(
     obj_type=None,
     is_part=None,
     is_model=None,
+    is_primitive=None,
     part_key=None,
     name=None,
     meta_key=None,
@@ -63,6 +64,8 @@ def filter_objs(
             xo and (o.is_model == is_model if isinstance(o, LdrPart) else False)
             for xo, o in zip(x, a)
         ]
+    if is_primitive is not None:
+        x = [xo and (o.is_primitive == is_primitive) for xo, o in zip(x, a)]
     if part_key is not None:
         x = [xo and o.part_key == part_key for xo, o in zip(x, a)]
     if name is not None:
