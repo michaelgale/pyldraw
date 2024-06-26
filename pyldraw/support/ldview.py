@@ -125,15 +125,11 @@ class LDViewRender:
         self.log_output = False
         self.log_level = 0
         self.overwrite = False
-        self.args_size = ""
-        self.args_cam = ""
         self.tmp_path = tempfile.gettempdir() + os.sep + "temp.ldr"
         self.settings_snapshot = None
         for k, v in kwargs.items():
             if k in self.__dict__:
                 self.__dict__[k] = v
-        self.set_page_size(self.page_width, self.page_height)
-        self.set_scale(self.scale)
 
     def __str__(self):
         s = []
@@ -170,25 +166,38 @@ class LDViewRender:
         self.texmaps = False
         self.specular = False
 
-    def set_page_size(self, width, height):
-        self.page_width = width
-        self.page_height = height
-        self.pix_width = self.page_width * self.dpi
-        self.pix_height = self.page_height * self.dpi
-        self.args_size = "-SaveWidth=%d -SaveHeight=%d" % (
+    @property
+    def pix_width(self):
+        return self.page_width * self.dpi
+
+    @property
+    def pix_height(self):
+        return self.page_height * self.dpi
+
+    @property
+    def cam_dist(self):
+        return int(camera_distance(self.scale, self.dpi, self.page_width))
+
+    @property
+    def args_cam(self):
+        return "-ca0.01 -cg0.0,0.0,%d" % (self.cam_dist)
+
+    @property
+    def args_size(self):
+        return "-SaveWidth=%d -SaveHeight=%d" % (
             self.pix_width,
             self.pix_height,
         )
 
+    def set_page_size(self, width, height):
+        self.page_width = width
+        self.page_height = height
+
     def set_dpi(self, dpi):
         self.dpi = dpi
-        self.set_page_size(width=self.page_width, height=self.page_height)
-        self.set_scale(scale=self.scale)
 
     def set_scale(self, scale):
         self.scale = scale
-        self.cam_dist = int(camera_distance(self.scale, self.dpi, self.page_width))
-        self.args_cam = "-ca0.01 -cg0.0,0.0,%d" % (self.cam_dist)
 
     def _logoutput(self, msg, tstart=None, level=2):
         if level <= self.log_level:

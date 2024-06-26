@@ -665,36 +665,36 @@ class LdrPart(LdrObj):
 
     @staticmethod
     def from_str(s):
-        split_line = s.split()
-        if not len(split_line) >= 15:
+        sl = s.split()
+        if not len(sl) >= 15:
             return None
-        line_type = int(split_line[0].lstrip())
+        line_type = int(sl[0].lstrip())
         if not line_type == 1:
             return None
         p = LdrPart()
         p.raw = s
-        p.colour = int(split_line[1])
-        p.set_points(split_line[2:5])
+        p.colour = int(sl[1])
+        p.set_points(sl[2:5])
         p.matrix = Matrix(
             [
                 [
-                    quantize(split_line[5]),
-                    quantize(split_line[6]),
-                    quantize(split_line[7]),
+                    quantize(sl[5]),
+                    quantize(sl[6]),
+                    quantize(sl[7]),
                 ],
                 [
-                    quantize(split_line[8]),
-                    quantize(split_line[9]),
-                    quantize(split_line[10]),
+                    quantize(sl[8]),
+                    quantize(sl[9]),
+                    quantize(sl[10]),
                 ],
                 [
-                    quantize(split_line[11]),
-                    quantize(split_line[12]),
-                    quantize(split_line[13]),
+                    quantize(sl[11]),
+                    quantize(sl[12]),
+                    quantize(sl[13]),
                 ],
             ]
         )
-        pname = " ".join(split_line[14:])
+        pname = " ".join(sl[14:])
         p.name = pname
         return p
 
@@ -702,11 +702,17 @@ class LdrPart(LdrObj):
         scale = scale if scale is not None else DEFAULT_PLI_SCALE
         aspect = aspect if aspect is not None else DEFAULT_PLI_ASPECT
         self.set_rotation(Vector(aspect))
-        aspect = tuple(int(v) & 0xFF for v in aspect[:3])
-        name = strip_part_ext(self.name)
         dpi = DEFAULT_DPI
         if "dpi" in kwargs:
             dpi = kwargs["dpi"]
+        fn = self.pli_filename(scale, aspect, dpi)
+        ldv = LDViewRender(**kwargs)
+        ldv.set_scale(scale)
+        ldv.render_from_parts([self], fn)
+
+    def pli_filename(self, scale, aspect, dpi):
+        aspect = tuple(int(v) & 0xFF for v in aspect[:3])
+        name = strip_part_ext(self.name)
         fn = "%s-%d-%3d-%.2f-%02X%02X%02X.png" % (
             name,
             self.colour.code,
@@ -716,5 +722,4 @@ class LdrPart(LdrObj):
             aspect[1],
             aspect[2],
         )
-        ldv = LDViewRender(**kwargs)
-        ldv.render_from_parts([self], fn)
+        return fn
