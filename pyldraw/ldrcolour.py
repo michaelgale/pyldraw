@@ -110,7 +110,7 @@ class LdrColour:
     def name(self):
         if self.code in LDR_COLOUR_NAME:
             return LDR_COLOUR_NAME[self.code]
-        return None
+        return self.label
 
     @property
     def name_slug(self):

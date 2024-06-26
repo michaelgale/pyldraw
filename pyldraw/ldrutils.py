@@ -28,6 +28,10 @@ import os
 from .ldrobj import LdrMeta, LdrPart
 
 
+def exclude_objs(a, **kwargs):
+    return obj_difference(a, filter_objs(a, **kwargs))
+
+
 def filter_objs(
     a,
     as_mask=False,

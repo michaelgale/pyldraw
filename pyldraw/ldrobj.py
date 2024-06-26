@@ -27,8 +27,9 @@ import hashlib
 
 from .geometry import Vector, Matrix, safe_vector, BoundBox
 from .helpers import quantize, vector_str, mat_str, rich_vector_str, strip_part_ext
-
-from pyldraw import *
+from .ldrcolour import LdrColour
+from .constants import *
+from .support.ldview import LDViewRender
 
 
 class LdrObj:
@@ -437,6 +438,7 @@ class LdrMeta(LdrObj):
 
     @staticmethod
     def from_str(s):
+        """Returns a LdrMeta object by parsing a string representation of LDraw meta line 0"""
         split_line = s.split()
         line_type = int(split_line[0].lstrip())
         if not line_type == 0:
@@ -452,8 +454,10 @@ class LdrMeta(LdrObj):
                 obj.param_spec = v
         return obj
 
+    @staticmethod
     def from_colour(colour):
-        name = colour.label if colour.label is not None else "Colour_%d" % (colour.code)
+        """Returns a LdrMeta object representing a !COLOUR meta definition of a LdrColour object."""
+        name = colour.name if colour.name is not None else "Colour_%d" % (colour.code)
         edge = colour.edge if colour.edge is not None else colour.hex_code
         s = []
         s.append("0 !COLOUR %s" % (name))

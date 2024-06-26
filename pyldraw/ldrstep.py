@@ -29,12 +29,14 @@ import inspect
 
 from rich import print
 
-from pyldraw import *
+from .constants import *
+from .ldrcolour import LdrColour
 from pyldraw.support.imgutils import ImageMixin
 from .geometry import Vector, Matrix, safe_vector, BoundBox
 from .ldrutils import *
 from .helpers import normalize_filename, strip_part_ext, quantize, vector_str
 from .ldrarrow import LdrArrow
+from .support.ldview import LDViewRender
 
 
 class LdrStep:
@@ -171,6 +173,7 @@ class BuildStep(LdrStep):
         self._step_objs = None
         # hash code for detecting changes in model state
         self._sha1_hash = None
+        # bounding boxes for overall model and parts added this step
         self._model_bound_box = None
         self._step_bound_box = None
 
@@ -178,20 +181,7 @@ class BuildStep(LdrStep):
         return "%s(%d step objects)" % (self.__class__.__name__, len(self.step_objs))
 
     def __rich__(self):
-        s = []
-        s.append(
-            "STEP: %3d level: %1d objs: %3d/%4d parts: %3d/%4d aspect: %s"
-            % (
-                self.idx,
-                self.level,
-                len(self.step_objs),
-                len(self.model_objs),
-                len(self.step_parts),
-                len(self.model_parts),
-                vector_str(self.aspect),
-            )
-        )
-        return "\n".join(s)
+        return str(self)
 
     def __str__(self):
         indent = " " * (self.level + 1)
@@ -205,7 +195,7 @@ class BuildStep(LdrStep):
         else:
             model_state = " "
         return (
-            "STEP: %3d%s level: %1d%s%s step-parts: %3d model-parts: %4d aspect: %s "
+            "STEP: %3d%s level: %1d%s%s step-parts: %3d model-parts: %4d scale: %.2f aspect: %s "
             % (
                 self.idx,
                 indent,
@@ -214,7 +204,8 @@ class BuildStep(LdrStep):
                 model_state,
                 len(self.step_parts),
                 len(self.model_parts),
-                self.aspect,
+                self.scale,
+                vector_str(self.aspect),
             )
         )
 
@@ -273,54 +264,53 @@ class BuildStep(LdrStep):
         """Returns a list of all LdrObj representing the total model"""
         return self._model_objs
 
-    def _shifted_objs(self, only_for_step=True):
-        """Ensures objects that captured between delimiter meta lines are transformed to
-        their correct position."""
+    def _modified_objs(self, only_for_step=True):
+        """Ensures objects that captured between delimiter meta lines are modified
+        as applicable, e.g. translated, hidden, etc."""
         if only_for_step:
             objs = filter_objs(self.step_objs, is_part=True)
         else:
             objs = filter_objs(self.model_objs, is_part=True)
-        shift_objs = []
+        mod_objs = []
 
         for d in self.delimited_objs:
             for obj in d["objs"]:
                 # if obj is a sub-model part, then use the path to filter objects
                 # otherwise, simply use the sha1_hash attribute
                 if isinstance(obj, LdrPart) and obj.is_model:
-                    dobjs = filter_objs(objs, path=obj.path)
+                    del_objs = filter_objs(objs, path=obj.path)
                 else:
-                    dobjs = filter_objs(objs, sha1_hash=obj.sha1_hash)
-                objs = obj_difference(objs, dobjs)
-                offset = (
-                    Vector(d["offset"])
-                    * Matrix.euler_to_rot_matrix(self.aspect).transpose()
-                )
-                dobjs = [o.translated(offset) for o in dobjs]
-                shift_objs.extend(dobjs)
+                    del_objs = filter_objs(objs, sha1_hash=obj.sha1_hash)
+                objs = obj_difference(objs, del_objs)
+                if "offset" in d:
+                    offset = (
+                        Vector(d["offset"])
+                        * Matrix.euler_to_rot_matrix(self.aspect).transpose()
+                    )
+                    mod_objs.extend([o.translated(offset) for o in del_objs])
 
-            shift_objs.extend(self.arrows_for_offset(shift_objs, d["offset"]))
-        return obj_union(objs, shift_objs)
+            mod_objs.extend(self.arrows_for_offset(mod_objs, d["offset"]))
+        return obj_union(objs, mod_objs)
 
     def arrows_for_offset(self, objs, offset):
         if len(objs) > 0:
             bb = self.bound_box(objs)
-            arrow = LdrArrow(colour=804)
-            arrow.aspect = Vector(self.aspect)
+            arrow = LdrArrow(colour=804, aspect=self.aspect)
             arrow.set_from_offset_bound_box(bb, offset)
-            aobjs = [o.new_path("arrow") for o in arrow.arrow_objs()]
-            return [o.rotated_by(self.aspect) for o in aobjs]
+            arrows = [o.new_path("arrow") for o in arrow.arrow_objs()]
+            return [o.rotated_by(self.aspect) for o in arrows]
         else:
             return []
 
     @property
     def step_parts(self):
         """Returns a list of LdrPart objects representing the new parts added at this step"""
-        return self._shifted_objs(only_for_step=True)
+        return self._modified_objs(only_for_step=True)
 
     @property
     def model_parts(self):
         """Returns a list of LdrPart objects representing the total model at this step."""
-        return self._shifted_objs(only_for_step=False)
+        return self._modified_objs(only_for_step=False)
 
     def bound_box(self, parts):
         """Returns the bounding box of the model at this step."""
@@ -380,15 +370,14 @@ class BuildStep(LdrStep):
         ImageMixin.save_image(outline, img)
 
     def _render_maskable_image(self, fn, mask_colour, submodel=None, **kwargs):
+        add_colour = LdrColour.ADDED_MASK()
         step_parts = filter_objs(self.step_parts, path=submodel)
         prev_parts = obj_difference(self.model_parts, step_parts)
-        prev_parts = obj_change_colour(prev_parts, mask_colour.code)
-        new_parts = obj_change_colour(step_parts, ADDED_PARTS_COLOUR, path=submodel)
-        parts = [LdrMeta.from_colour(mask_colour)]
-        parts.append(LdrMeta.from_colour(LdrColour.ADDED_MASK()))
+        prev_parts = obj_change_colour(prev_parts, mask_colour)
+        new_parts = obj_change_colour(step_parts, add_colour, path=submodel)
+        parts = [LdrMeta.from_colour(mask_colour), LdrMeta.from_colour(add_colour)]
         parts.extend(obj_union(prev_parts, new_parts))
-        arrows = filter_objs(parts, path="arrow")
-        parts = obj_difference(parts, arrows)
+        parts = exclude_objs(parts, path="arrow")
         if "dpi" in kwargs:
             kwargs["dpi"] = self.dpi
         ldv = LDViewRender(**kwargs)
@@ -559,8 +548,7 @@ def recursive_unwrap_model(
         if obj.model_part_name in submodels:
             submodel = submodels[obj.model_part_name]
             new_matrix = m * obj.matrix
-            new_loc = m * obj.pos
-            new_loc += o
+            new_loc = m * obj.pos + o
             p = assign_part_path(p, obj.model_part_name, path_names=all_paths)
             obj.path = p
             all_paths.append(p)
@@ -576,8 +564,7 @@ def recursive_unwrap_model(
             p = demote_path(p)
         else:
             if only_submodel is None:
-                new_obj = obj.copy()
-                new_obj = new_obj.transformed(matrix=m, offset=o)
+                new_obj = obj.transformed(matrix=m, offset=o)
                 new_obj.path = p
                 objects.append(new_obj)
     return objects

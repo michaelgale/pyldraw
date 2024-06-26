@@ -29,7 +29,10 @@ from collections import Counter
 from rich import print
 
 from .geometry import Vector
-from pyldraw import *
+from .constants import *
+from .ldrcolour import LdrColour
+from .ldrmodel import LdrModel
+from .ldrstep import BuildStep
 from .ldrutils import file_name_with_index
 
 

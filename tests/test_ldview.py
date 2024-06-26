@@ -56,11 +56,15 @@ def test_ldvrender_features():
                 assert "offset" in d[0]
                 assert d[0]["offset"].almost_same_as((0, -60, 0))
         # step.render_model(**LDV_ARGS)
+        # step.render_masked_image(**LDV_ARGS)
+        # step.render_unmasked_image(**LDV_ARGS)
+        # step.render_outline_image(**LDV_ARGS)
 
 
 # def test_ldvrender_big():
 #     f1 = LdrFile("./tests/testfiles/Cafe2_clean.ldr", dpi=LDV_ARGS["dpi"], initial_aspect=(-35, 35, 0))
-#     for i, step in enumerate(f1.iter_steps()):
-#         print(step)
-#         if i < 50:
-#             step.render_model(**LDV_ARGS)
+    # f1.print_bom()
+    # for i, step in enumerate(f1.iter_steps()):
+    #     print(step)
+        # if i < 50:
+        #     step.render_model(**LDV_ARGS)
