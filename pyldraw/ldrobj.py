@@ -26,7 +26,14 @@
 import hashlib
 
 from .geometry import Vector, Matrix, safe_vector, BoundBox
-from .helpers import quantize, vector_str, mat_str, rich_vector_str, strip_part_ext
+from .helpers import (
+    quantize,
+    vector_str,
+    mat_str,
+    rich_vector_str,
+    strip_part_ext,
+    parse_params,
+)
 from .ldrcolour import LdrColour
 from .constants import *
 from .support.ldview import LDViewRender
@@ -367,7 +374,7 @@ class LdrMeta(LdrObj):
         super().__init__(**kwargs)
 
     def __str__(self):
-        return "0 %s %s" % (self.command, self.parameters)
+        return "0 %s %s" % (self.command, self.values)
 
     def __rich__(self):
         s = []
@@ -376,7 +383,7 @@ class LdrMeta(LdrObj):
             s.append("[bold %s]%s[not bold]" % (RICH_MPD_COLOUR, self.command))
         else:
             s.append("[bold %s]%s[not bold]" % (RICH_META_COLOUR, self.command))
-        for p in self.parameters.split():
+        for p in self.values.split():
             if p.lower().endswith(".ldr"):
                 s.append("[bold %s]%s[not bold]" % (RICH_FILE_COLOUR, p))
             elif p.lower().endswith(".dat"):
@@ -398,7 +405,7 @@ class LdrMeta(LdrObj):
     @property
     def model_name(self):
         if self.is_model_name:
-            return self.parameters
+            return self.values
         return None
 
     @property
@@ -411,30 +418,36 @@ class LdrMeta(LdrObj):
 
     @property
     def rotation_absolute(self):
-        if self.command.upper() == "ROTSTEP":
-            if "ABS" in self.parameters:
-                return Vector(self.parameters.split()[0:3])
+        if self.command.upper() in ("ROTSTEP", "!PY ROT"):
+            if "ABS" in self.parameters["flags"]:
+                x = float(self.parameters["x"])
+                y = float(self.parameters["y"])
+                z = float(self.parameters["z"])
+                return Vector(x, y, z)
         return None
 
     @property
     def rotation_relative(self):
-        if self.command.upper() == "ROTSTEP":
-            if "REL" in self.parameters:
-                return Vector(self.parameters.split()[0:3])
+        if self.command.upper() in ("ROTSTEP", "!PY ROT"):
+            if "REL" in self.parameters["flags"]:
+                x = float(self.parameters["x"])
+                y = float(self.parameters["y"])
+                z = float(self.parameters["z"])
+                return Vector(x, y, z)
         return None
 
     @property
     def rotation_end(self):
         if self.command.upper() == "ROTSTEP":
-            if "END" in self.parameters:
+            if "END" in self.parameters["flags"]:
                 return True
         return None
 
     @property
     def new_scale(self):
-        if self.command == "!PY":
-            if "SCALE" in self.parameters:
-                return float(self.parameters.split()[-1])
+        if self.command == "!PY SCALE":
+            if "scale" in self.parameters:
+                return float(self.parameters["scale"])
 
     @staticmethod
     def from_str(s):
@@ -446,12 +459,12 @@ class LdrMeta(LdrObj):
         obj = LdrMeta()
         obj.raw = s
         obj.text = " ".join(split_line[1:])
-        cmd = split_line[1].upper()
-        obj.command = cmd
-        obj.parameters = " ".join(split_line[2:])
         for k, v in LDR_META_DICT.items():
-            if k == obj.command:
+            if obj.text.startswith(k):
+                obj.command = k
                 obj.param_spec = v
+                obj.values = obj.text.replace(k, "").lstrip()
+                obj.parameters = parse_params(obj.param_spec, obj.values)
         return obj
 
     @staticmethod

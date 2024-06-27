@@ -95,3 +95,94 @@ def normalize_filename(filename, filepath):
     else:
         fn = os.path.normpath(filename)
     return fn
+
+
+def strip_punc(s, chars=None):
+    char_list = chars if chars is not None else "< > ( ) | , [ ]"
+    for c in char_list.split():
+        s = s.replace(c, "")
+    return s
+
+
+def strip_flag_tokens(specs, vals):
+    """Strips tokens from vals which are specified in specs.
+    flags are enclosed in parentheses () and separated by pipes |
+    new specs and vals strings are returned with tokens extracted."""
+
+    start_count = specs.count("(")
+    end_count = specs.count(")")
+    if start_count == 0 or end_count == 0 or not start_count == end_count:
+        return specs, vals, []
+    token_groups = []
+    token_group = []
+    capture_depth = 0
+    for c in specs:
+        if c == "(":
+            capture_depth += 1
+        elif c == ")" and capture_depth > 0:
+            capture_depth -= 1
+            if capture_depth == 0:
+                token_groups.append("".join(token_group))
+                token_group = []
+        else:
+            if capture_depth > 0:
+                token_group.append(c)
+
+    tokens = []
+    for token_group in token_groups:
+        tg = strip_punc(token_group)
+        ts = tg.split()
+        for t in ts:
+            tokens.append(t.lstrip().rstrip())
+
+    new_specs = strip_punc(specs, chars="( ) |")
+    ns = new_specs.split()
+    new_specs = []
+    for e in ns:
+        if not e in tokens:
+            new_specs.append(e)
+    new_specs = " ".join(new_specs)
+
+    found_tokens = []
+    for v in vals.split():
+        if v in tokens:
+            found_tokens.append(v)
+    vs = vals.split()
+    nv = []
+    for v in vs:
+        if v not in found_tokens:
+            nv.append(v)
+    vals = " ".join(nv)
+    return new_specs, vals, found_tokens
+
+
+def parse_params(specs, vals):
+    """Parse string describing parameters.
+    named values are contained in angle brackets: <value>
+    optional named values are contained in square brackets [value]
+    named flags are contained in parentheses: (FLAG | FLAG2)"""
+    param_dict = {}
+
+    specs, vals, tokens = strip_flag_tokens(specs, vals)
+    param_dict["flags"] = tokens
+    sp = specs.split()
+    spec_count = len(sp)
+    spec_idx = 0
+    for i, val in enumerate(vals.split()):
+        if spec_idx < spec_count:
+            if sp[spec_idx].startswith("<"):
+                key = strip_punc(sp[spec_idx])
+                param_dict[key] = val
+                spec_idx += 1
+                continue
+            elif sp[spec_idx].startswith("["):
+                key = strip_punc(sp[spec_idx])
+                param_dict[key] = val
+                spec_idx += 1
+                continue
+        if "extra" in param_dict:
+            param_dict["extra"].append(val)
+        else:
+            param_dict["extra"] = [val]
+
+    return param_dict

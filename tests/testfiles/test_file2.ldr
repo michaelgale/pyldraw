@@ -26,6 +26,7 @@
 1 15 0 -96 70 1 0 0 0 1 0 -0 0 1 3009.dat
 1 15 0 -72 70 1 0 0 0 1 0 -0 0 1 3009.dat
 0 STEP
+0 !PY ROT -45 45 0 ABS
 0 !PY ARROW BEGIN 0 -40 0
 1 15 -50 -104 70 1 0 0 0 1 0 -0 0 1 submodel3.ldr
 0 !PY ARROW END
