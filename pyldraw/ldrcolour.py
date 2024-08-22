@@ -23,6 +23,7 @@
 #
 # LdrColour class
 
+import math
 import slugify
 
 from .constants import *
@@ -117,6 +118,24 @@ class LdrColour:
         return slugify.slugify("-".join(self.name.split()))
 
     @property
+    def compact_name(self):
+        name = self.name
+        replacements = [
+            "Bright Br",
+            "Light Lt",
+            "Dark Dk",
+            "Medium Med",
+            "Bluish Bl",
+            "Reddish Red",
+            "Chrome Chr",
+            "Yellowish Ylw",
+        ]
+        for replacement in replacements:
+            rs = replacement.split()
+            name = name.replace(rs[0], rs[1])
+        return name
+
+    @property
     def hex_code(self):
         return "#%02X%02X%02X" % (
             int(self.r * 255.0),
@@ -127,6 +146,18 @@ class LdrColour:
     @property
     def bgr(self):
         return (int(self.b * 255), int(self.g * 255), int(self.r * 255))
+
+    @property
+    def high_contrast_complement(self):
+        level = self.r * self.r + self.g * self.g + self.b * self.b
+        level = math.sqrt(level)
+        if level < 1.2:
+            return (1.0, 1.0, 1.0)
+        return (0.0, 0.0, 0.0)
+
+    @property
+    def rgb(self):
+        return self.r, self.g, self.b
 
     def set_rgb(self, r, g=None, b=None):
         if r is None:

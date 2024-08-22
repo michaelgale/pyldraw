@@ -122,37 +122,17 @@ def strip_flag_tokens(specs, vals):
         elif c == ")" and capture_depth > 0:
             capture_depth -= 1
             if capture_depth == 0:
-                token_groups.append("".join(token_group))
+                token_groups.append("".join(token_group).strip())
                 token_group = []
         else:
             if capture_depth > 0:
                 token_group.append(c)
 
-    tokens = []
-    for token_group in token_groups:
-        tg = strip_punc(token_group)
-        ts = tg.split()
-        for t in ts:
-            tokens.append(t.lstrip().rstrip())
-
+    tokens = [t for tg in token_groups for t in tg.split()]
     new_specs = strip_punc(specs, chars="( ) |")
-    ns = new_specs.split()
-    new_specs = []
-    for e in ns:
-        if not e in tokens:
-            new_specs.append(e)
-    new_specs = " ".join(new_specs)
-
-    found_tokens = []
-    for v in vals.split():
-        if v in tokens:
-            found_tokens.append(v)
-    vs = vals.split()
-    nv = []
-    for v in vs:
-        if v not in found_tokens:
-            nv.append(v)
-    vals = " ".join(nv)
+    new_specs = " ".join([e for e in new_specs.split() if not e in tokens])
+    found_tokens = [v for v in vals.split() if v in tokens]
+    vals = " ".join([v for v in vals.split() if not v in found_tokens])
     return new_specs, vals, found_tokens
 
 
@@ -170,12 +150,7 @@ def parse_params(specs, vals):
     spec_idx = 0
     for i, val in enumerate(vals.split()):
         if spec_idx < spec_count:
-            if sp[spec_idx].startswith("<"):
-                key = strip_punc(sp[spec_idx])
-                param_dict[key] = val
-                spec_idx += 1
-                continue
-            elif sp[spec_idx].startswith("["):
+            if sp[spec_idx].startswith("<") or sp[spec_idx].startswith("["):
                 key = strip_punc(sp[spec_idx])
                 param_dict[key] = val
                 spec_idx += 1

@@ -448,6 +448,7 @@ class LdrMeta(LdrObj):
         if self.command == "!PY SCALE":
             if "scale" in self.parameters:
                 return float(self.parameters["scale"])
+        return None
 
     @staticmethod
     def from_str(s):

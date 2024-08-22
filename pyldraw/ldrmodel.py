@@ -164,8 +164,7 @@ class LdrModel:
         models = LdrModel.unwrap_part_submodels(file=filename)
         objs = LdrModel.recursive_unwrap_part(models["root"], models)
         m = LdrModel(name=filename)
-        step = LdrStep(objs)
-        m.steps = [step]
+        m.steps = [LdrStep(objs)]
         return m
 
     @staticmethod
