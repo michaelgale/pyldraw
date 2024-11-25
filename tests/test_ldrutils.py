@@ -302,13 +302,8 @@ def test_bound_box():
 def test_param_parsing():
     specs = "<x> <y> <z> (REL | ABS)"
     vals = "-35 55 0 ABS"
-    s, v, t = strip_flag_tokens(specs, vals)
-    assert s == "<x> <y> <z>"
-    assert v == "-35 55 0"
-    assert len(t) == 1
-    assert t[0] == "ABS"
-
-    p = parse_params(specs, vals)
+    mp = MetaValueParser(specs, vals)
+    p = mp.param_dict
     assert "flags" in p
     assert len(p["flags"]) == 1
     assert all(x in p for x in ("x", "y", "z"))
@@ -316,42 +311,65 @@ def test_param_parsing():
 
     specs = "( CERTIFY ( CCW | CW ) | NOCERTIFY ) <count> (A | B) [xr] [xb]"
     vals = "13 B 7"
-    p = parse_params(specs, vals)
+    mp = MetaValueParser(specs, vals)
+    p = mp.param_dict
     assert "B" in p["flags"]
     assert p["count"] == "13"
     assert p["xr"] == "7"
     assert "xb" not in p
+
     vals = "13 B 7 8"
-    p = parse_params(specs, vals)
+    mp = MetaValueParser(specs, vals)
+    p = mp.param_dict
     assert "B" in p["flags"]
     assert p["count"] == "13"
     assert p["xr"] == "7"
     assert p["xb"] == "8"
+
     vals = "13 B 7 8 5"
-    p = parse_params(specs, vals)
+    mp = MetaValueParser(specs, vals)
+    p = mp.param_dict
     assert "B" in p["flags"]
     assert p["count"] == "13"
     assert p["xr"] == "7"
     assert p["xb"] == "8"
     assert p["extra"][0] == "5"
+
     vals = "13 B"
-    p = parse_params(specs, vals)
+    mp = MetaValueParser(specs, vals)
+    p = mp.param_dict
     assert "B" in p["flags"]
     assert p["count"] == "13"
     assert "xr" not in p
     assert "xb" not in p
+
     vals = "13"
-    p = parse_params(specs, vals)
+    mp = MetaValueParser(specs, vals)
+    p = mp.param_dict
     assert "B" not in p["flags"]
     assert p["count"] == "13"
     assert "xr" not in p
     assert "xb" not in p
+
     vals = "B"
-    p = parse_params(specs, vals)
+    mp = MetaValueParser(specs, vals)
+    p = mp.param_dict
     assert "B" in p["flags"]
 
     specs = ""
     vals = "13 B 7"
-    p = parse_params(specs, vals)
+    mp = MetaValueParser(specs, vals)
+    p = mp.param_dict
     assert len(p["flags"]) == 0
     assert len(p["extra"]) == 3
+
+    specs = "[LENGTH length] [RATIO ratio] [TILT tilt] [COLOUR colour] <x> <y> <z>"
+    mp = MetaValueParser(specs, vals="-20 -50 0 20 -50 0 LENGTH 3 TILT 30  COLOUR 802")
+    p = mp.param_dict
+    assert p["length"] == "3"
+    assert p["tilt"] == "30"
+    assert p["colour"] == "802"
+    assert p["x"] == "-20"
+    assert p["y"] == "-50"
+    assert p["z"] == "0"
+    assert p["extra"] == ["20", "-50", "0"]

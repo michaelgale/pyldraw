@@ -127,9 +127,8 @@ def test_ldrfile():
     assert f1.element_count == 14
     assert f1.build_steps[-1].sha1_hash == "5af110bece15f97c8d2276975f4f04b3c068057a"
 
-    # print("Piece count   : %dx" % (f1.piece_count))
-    # print("Element count : %dx" % (f1.element_count))
-    # print("Colour count  : %dx" % (f1.colour_count))
+    # for step in f1.iter_steps():
+    #     print(step)
 
     # f1 = LdrFile("./tests/testfiles/Cafe2_clean.ldr", initial_aspect=(0, 45, 0))
     # f1.print_bom()

@@ -32,7 +32,7 @@ from .helpers import (
     mat_str,
     rich_vector_str,
     strip_part_ext,
-    parse_params,
+    MetaValueParser,
 )
 from .ldrcolour import LdrColour
 from .constants import *
@@ -539,7 +539,9 @@ class LdrMeta(LdrObj):
                 obj.command = k
                 obj.param_spec = v
                 obj.values = obj.text.replace(k, "").lstrip()
-                obj.parameters = parse_params(obj.param_spec, obj.values)
+                mp = MetaValueParser(v, vals=obj.values)
+                obj.parameters = mp.param_dict
+                # obj.parameters = parse_params(obj.param_spec, obj.values)
         return obj
 
     @staticmethod

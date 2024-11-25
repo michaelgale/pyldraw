@@ -104,60 +104,167 @@ def strip_punc(s, chars=None):
     return s
 
 
-def strip_flag_tokens(specs, vals):
-    """Strips tokens from vals which are specified in specs.
-    flags are enclosed in parentheses () and separated by pipes |
-    new specs and vals strings are returned with tokens extracted."""
+class MetaValueParser:
+    """Parses arbritrarily specified values and flags contained in a Meta command."""
 
-    start_count = specs.count("(")
-    end_count = specs.count(")")
-    if start_count == 0 or end_count == 0 or not start_count == end_count:
-        return specs, vals, []
-    token_groups = []
-    token_group = []
-    capture_depth = 0
-    for c in specs:
-        if c == "(":
-            capture_depth += 1
-        elif c == ")" and capture_depth > 0:
-            capture_depth -= 1
-            if capture_depth == 0:
-                token_groups.append("".join(token_group).strip())
-                token_group = []
-        else:
-            if capture_depth > 0:
-                token_group.append(c)
+    def __init__(self, specs, vals=None, **kwargs):
+        self.specs = specs
+        self.vals = vals
+        self._flags = None
+        self._keyvals = None
 
-    tokens = [t for tg in token_groups for t in tg.split()]
-    new_specs = strip_punc(specs, chars="( ) |")
-    new_specs = " ".join([e for e in new_specs.split() if not e in tokens])
-    found_tokens = [v for v in vals.split() if v in tokens]
-    vals = " ".join([v for v in vals.split() if not v in found_tokens])
-    return new_specs, vals, found_tokens
+    def __str__(self):
+        s = []
+        s.append("MetaValueParser:")
+        s.append("  Specs: %s" % (self.specs))
+        s.append("  Flags: %s" % (self.flags))
+        s.append("  Key values: %s" % (self.keyvals))
+        s.append("  Labeled values:")
+        for e in self.keyvals:
+            if "label" in e:
+                opt = "(optional)" if e["delimiter"] == "[" else ""
+                s.append("    %s: %s %s" % (e["label"], e["keys"], opt))
+        s.append("  Unlabeled values:")
+        for e in self.keyvals:
+            if "label" not in e:
+                opt = "(optional)" if e["delimiter"] == "[" else ""
+                s.append("    %s %s" % (e["keys"], opt))
+        return "\n".join(s)
 
+    @property
+    def labeled_vals_labels(self):
+        """Returns a list of labels associated with labelled keyvals"""
+        return [e["label"] for e in self.keyvals if "label" in e]
 
-def parse_params(specs, vals):
-    """Parse string describing parameters.
-    named values are contained in angle brackets: <value>
-    optional named values are contained in square brackets [value]
-    named flags are contained in parentheses: (FLAG | FLAG2)"""
-    param_dict = {}
+    @property
+    def unlabeled_vals(self):
+        """Returns a list of keys associated with unlabelled keyvals"""
+        return [e["keys"][0] for e in self.keyvals if "label" not in e]
 
-    specs, vals, tokens = strip_flag_tokens(specs, vals)
-    param_dict["flags"] = tokens
-    sp = specs.split()
-    spec_count = len(sp)
-    spec_idx = 0
-    for i, val in enumerate(vals.split()):
-        if spec_idx < spec_count:
-            if sp[spec_idx].startswith("<") or sp[spec_idx].startswith("["):
-                key = strip_punc(sp[spec_idx])
-                param_dict[key] = val
-                spec_idx += 1
-                continue
-        if "extra" in param_dict:
-            param_dict["extra"].append(val)
-        else:
-            param_dict["extra"] = [val]
+    @property
+    def flags(self):
+        if self._flags is None:
+            """Extracts expected flag tokens from provided specifications."""
+            start_count = self.specs.count("(")
+            end_count = self.specs.count(")")
+            if start_count == 0 or end_count == 0 or not start_count == end_count:
+                return []
+            token_groups = []
+            token_group = []
+            capture_depth = 0
+            for c in self.specs:
+                if c == "(":
+                    capture_depth += 1
+                elif c == ")" and capture_depth > 0:
+                    capture_depth -= 1
+                    if capture_depth == 0:
+                        tg = "".join(token_group).strip()
+                        tg = tg.replace("|", "")
+                        token_groups.extend(tg.split())
+                        token_group = []
+                else:
+                    if capture_depth > 0:
+                        token_group.append(c)
+            self._flags = token_groups
+        return self._flags
 
-    return param_dict
+    @property
+    def keyvals(self):
+        if self._keyvals is None:
+            self._keyvals = self._extract_vals()
+        return self._keyvals
+
+    def labelled_keyval(self, label):
+        if label is not None:
+            for e in self.keyvals:
+                if "label" in e:
+                    if label == e["label"]:
+                        return e["keys"]
+        return None
+
+    def _extract_vals(self):
+        """Extracts values which are delimited by <> or other symbol pair.
+        Values can be named with a label prefix token as the first item
+        followed by one or more value keys.
+        <LABEL key1 key2 ...>
+        Alternatively, a value can simply be unlabeled and specified with a key:
+        <key>
+        """
+        captured = False
+        keyvals = []
+        val_cap = []
+        for c in self.specs:
+            if (c == "<" or c == "[") and not captured:
+                start_delimit = c
+                val_cap = []
+                captured = True
+            elif (c == ">" or c == "]") and captured:
+                val_cap = "".join(val_cap)
+                vs = val_cap.split()
+                if len(vs) >= 2:
+                    keyvals.append(
+                        {
+                            "delimiter": start_delimit,
+                            "label": vs[0],
+                            "keys": [v for v in vs[1:]],
+                        }
+                    )
+                elif len(vs) == 1:
+                    keyvals.append({"delimiter": start_delimit, "keys": [vs[0]]})
+                captured = False
+            elif captured:
+                val_cap.append(c)
+        return keyvals
+
+    def matched_flags(self, vals=None):
+        vals = vals if vals is not None else self.vals
+        matched = []
+        for v in vals.split():
+            if v in self.flags:
+                matched.append(v)
+        return matched
+
+    def matched_values(self, vals=None):
+        vals = vals if vals is not None else self.vals
+        matched = []
+        # strip flags
+        val_stack = [v for v in vals.split() if v not in self.flags]
+        # extract labeled parameters and strip
+        new_stack = []
+        idx = 0
+        for i, v in enumerate(val_stack):
+            if idx >= len(val_stack):
+                break
+            vp = val_stack[idx]
+            if vp in self.labeled_vals_labels:
+                keys = self.labelled_keyval(vp)
+                for offset, key in enumerate(keys):
+                    matched.append({key: val_stack[idx + 1 + offset]})
+                idx += len(keys) + 1
+            else:
+                new_stack.append(vp)
+                idx += 1
+        extra = []
+        remaining = self.unlabeled_vals
+        # assign remaining values to unlabelled key values
+        # and if more values still remain, assign to "extra"
+        for i, e in enumerate(new_stack):
+            if i < len(remaining):
+                key = remaining[i]
+                matched.append({key: e})
+            else:
+                extra.append(e)
+        if len(extra) > 0:
+            matched.append({"extra": extra})
+        return matched
+
+    @property
+    def param_dict(self):
+        flags = self.matched_flags()
+        vals = self.matched_values()
+        pd = {}
+        pd["flags"] = flags
+        for v in vals:
+            for k, e in v.items():
+                pd[k] = e
+        return pd

@@ -371,7 +371,7 @@ LDR_META_DICT = {
     "SYNTH HIDE": "",
     "SYNTHESIZED BEGIN": "",
     "SYNTHESIZED END": "",
-    "!PY ARROW BEGIN": "<x> <y> <z>",
+    "!PY ARROW BEGIN": "[LENGTH length] [RATIO ratio] [TILT tilt] [COLOUR colour] <x> <y> <z>",
     "!PY ARROW END": "",
     "!PY COLUMNS": "<columns>",
     "!PY SCALE": "<scale>",
