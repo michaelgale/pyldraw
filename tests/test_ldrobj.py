@@ -46,6 +46,60 @@ def test_ldrmeta():
     assert isinstance(o3, LdrMeta)
     o3 = LdrObj.from_str("0 NOFILE")
     assert isinstance(o3, LdrMeta)
+    obj = LdrObj.from_str("0 !PY ROT FLIPY")
+    assert isinstance(obj, LdrMeta)
+    assert "FLIPY" in obj.parameters["flags"]
+    assert obj.rotation_relative == (0, 180, 0)
+
+
+def test_ldr_py_meta():
+    obj = LdrObj.from_str("0 !PY SCALE 0.55")
+    assert isinstance(obj, LdrMeta)
+    assert "scale" in obj.parameters
+    assert obj.new_scale == 0.55
+
+    obj = LdrObj.from_str("0 !PY COL_BREAK")
+    assert isinstance(obj, LdrMeta)
+    assert obj.column_break
+    assert obj.page_break is None
+
+    obj = LdrObj.from_str("0 !PY PAGE_BREAK")
+    assert isinstance(obj, LdrMeta)
+    assert obj.page_break
+    assert obj.column_break is None
+
+    obj = LdrObj.from_str("0 !PY HIDE_PLI")
+    assert isinstance(obj, LdrMeta)
+    assert obj.hide_pli
+
+    obj = LdrObj.from_str("0 !PY HIDE_FULLSCALE")
+    assert isinstance(obj, LdrMeta)
+    assert obj.hide_fullscale
+
+    obj = LdrObj.from_str("0 !PY HIDE_PREVIEW")
+    assert isinstance(obj, LdrMeta)
+    assert obj.hide_preview
+
+    obj = LdrObj.from_str("0 !PY HIDE_ROTICON")
+    assert isinstance(obj, LdrMeta)
+    assert obj.hide_rotation_icon
+
+    obj = LdrObj.from_str("0 !PY HIDE_PAGE_NUM")
+    assert isinstance(obj, LdrMeta)
+    assert obj.hide_page_num
+
+    obj = LdrObj.from_str("0 !PY SHOW_PAGE_NUM")
+    assert isinstance(obj, LdrMeta)
+    assert obj.show_page_num
+
+    obj = LdrObj.from_str("0 !PY NO_CALLOUT")
+    assert isinstance(obj, LdrMeta)
+    assert obj.no_callout
+
+    obj = LdrObj.from_str("0 !PY NEW_PAGE_NUM 3")
+    assert isinstance(obj, LdrMeta)
+    assert "number" in obj.parameters
+    assert obj.new_page_num == 3
 
 
 def test_ldrline():

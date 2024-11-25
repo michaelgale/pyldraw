@@ -141,8 +141,11 @@ class LdrModel:
         if name is not None:
             name = name
         else:
-            if steps[0][0].is_model_name:
-                name = steps[0][0].model_name
+            if isinstance(steps[0][0], LdrMeta):
+                if steps[0][0].is_model_name:
+                    name = steps[0][0].model_name
+            else:
+                name = "untitled"
         m = LdrModel(name)
         m.steps = steps
         return m

@@ -147,6 +147,88 @@ class LdrStep:
         self._delimited = delimited
         return self._delimited
 
+    def iter_meta_objs(self):
+        """Generator which iterates over step objects which represent meta commands"""
+        for o in self.objs:
+            if isinstance(o, LdrMeta):
+                yield o
+
+    def step_has_meta_command(self, attr=None):
+        """Looks for an LdrMeta object with a desired attribute.
+        Returns the attribute value or None."""
+        if attr is None:
+            attr = inspect.currentframe().f_back.f_code.co_name
+        for o in self.iter_meta_objs():
+            if attr in dir(o):
+                v = getattr(o, attr)
+                if v:
+                    return v
+        return None
+
+    @property
+    def rotation_absolute(self):
+        return self.step_has_meta_command()
+
+    @property
+    def rotation_relative(self):
+        return self.step_has_meta_command()
+
+    @property
+    def rotation_end(self):
+        return self.step_has_meta_command()
+
+    @property
+    def start_of_model(self):
+        return self.step_has_meta_command()
+
+    @property
+    def end_of_model(self):
+        return self.step_has_meta_command()
+
+    @property
+    def new_scale(self):
+        return self.step_has_meta_command()
+
+    @property
+    def column_break(self):
+        return self.step_has_meta_command()
+
+    @property
+    def page_break(self):
+        return self.step_has_meta_command()
+
+    @property
+    def hide_pli(self):
+        return self.step_has_meta_command()
+
+    @property
+    def hide_fullscale(self):
+        return self.step_has_meta_command()
+
+    @property
+    def hide_preview(self):
+        return self.step_has_meta_command()
+
+    @property
+    def hide_rotation_icon(self):
+        return self.step_has_meta_command()
+
+    @property
+    def hide_page_num(self):
+        return self.step_has_meta_command()
+
+    @property
+    def show_page_num(self):
+        return self.step_has_meta_command()
+
+    @property
+    def new_page_num(self):
+        return self.step_has_meta_command()
+
+    @property
+    def no_callout(self):
+        return self.step_has_meta_command()
+
 
 class BuildStep(LdrStep):
     """BuildStep is a richer representation of LdrStep with additional data to
@@ -343,12 +425,6 @@ class BuildStep(LdrStep):
             self._model_bound_box = self.bound_box(self.model_parts)
         return self._model_bound_box
 
-    def iter_meta_objs(self):
-        """Generator which iterates over step objects which represent meta commands"""
-        for o in self.objs:
-            if isinstance(o, LdrMeta):
-                yield o
-
     def render_model(self, **kwargs):
         """Renders an image of the model for this step."""
         path = kwargs["output_path"]
@@ -458,42 +534,6 @@ class BuildStep(LdrStep):
             kwargs["dpi"] = self.dpi
         for part in self.step_parts:
             part.render_image(**kwargs)
-
-    def step_has_meta_command(self, attr=None):
-        """Looks for an LdrMeta object with a desired attribute.
-        Returns the attribute value or None."""
-        if attr is None:
-            attr = inspect.currentframe().f_back.f_code.co_name
-        for o in self.iter_meta_objs():
-            if attr in dir(o):
-                v = getattr(o, attr)
-                if v:
-                    return v
-        return None
-
-    @property
-    def rotation_absolute(self):
-        return self.step_has_meta_command()
-
-    @property
-    def rotation_relative(self):
-        return self.step_has_meta_command()
-
-    @property
-    def rotation_end(self):
-        return self.step_has_meta_command()
-
-    @property
-    def start_of_model(self):
-        return self.step_has_meta_command()
-
-    @property
-    def end_of_model(self):
-        return self.step_has_meta_command()
-
-    @property
-    def new_scale(self):
-        return self.step_has_meta_command()
 
 
 def assign_part_path(p, name=None, path_names=None):

@@ -434,6 +434,12 @@ class LdrMeta(LdrObj):
                 y = float(self.parameters["y"])
                 z = float(self.parameters["z"])
                 return Vector(x, y, z)
+            elif "FLIPX" in self.parameters["flags"]:
+                return Vector(180, 0, 0)
+            elif "FLIPY" in self.parameters["flags"]:
+                return Vector(0, 180, 0)
+            elif "FLIPZ" in self.parameters["flags"]:
+                return Vector(0, 0, 180)
         return None
 
     @property
@@ -448,6 +454,74 @@ class LdrMeta(LdrObj):
         if self.command == "!PY SCALE":
             if "scale" in self.parameters:
                 return float(self.parameters["scale"])
+        return None
+
+    @property
+    def column_break(self):
+        if self.command.upper() == "!PY COL_BREAK":
+            return True
+        return None
+
+    @property
+    def page_break(self):
+        if self.command.upper() == "!PY PAGE_BREAK":
+            return True
+        return None
+
+    @property
+    def hide_pli(self):
+        if self.command.upper() == "!PY HIDE_PLI":
+            return True
+        return None
+
+    @property
+    def hide_fullscale(self):
+        if self.command.upper() == "!PY HIDE_FULLSCALE":
+            return True
+        return None
+
+    @property
+    def hide_preview(self):
+        if self.command.upper() == "!PY HIDE_PREVIEW":
+            return True
+        return None
+
+    @property
+    def hide_rotation_icon(self):
+        if self.command.upper() == "!PY HIDE_ROTICON":
+            return True
+        return None
+
+    @property
+    def hide_page_num(self):
+        if self.command.upper() == "!PY HIDE_PAGE_NUM":
+            return True
+        return None
+
+    @property
+    def show_page_num(self):
+        if self.command.upper() == "!PY SHOW_PAGE_NUM":
+            return True
+        return None
+
+    @property
+    def new_page_num(self):
+        if self.command == "!PY NEW_PAGE_NUM":
+            if "number" in self.parameters:
+                return int(self.parameters["number"])
+        return None
+
+    @property
+    def columns(self):
+        if self.command == "!PY COLUMNS":
+            if "columns" in self.parameters:
+                return int(self.parameters["columns"])
+        return None
+
+    @property
+    def no_callout(self):
+        if self.command.upper() == "!PY NO_CALLOUT":
+            return True
         return None
 
     @staticmethod
