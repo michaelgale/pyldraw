@@ -134,9 +134,11 @@ def test_ldrquad():
 
 
 def test_ldrpart():
-    o1 = LdrObj.from_str("1 4 5 10 20 1 0 0 0 1 0 0 0 -1 3201.dat")
+    o1 = LdrObj.from_str("1 4 5 10 20 1 0 0 0 1 0 0 0 -1 3001.dat")
     assert isinstance(o1, LdrPart)
     assert o1.is_part
+    assert o1.description == "Brick 2 x 4"
+    assert o1.colour.code == 4
     o1 = LdrObj.from_str("1 4 10 -50 20 -1 0 0 0 -1 0 0 0 -1 This Submodel 1.ldr")
     assert isinstance(o1, LdrPart)
     assert o1.is_model

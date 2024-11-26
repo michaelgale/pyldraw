@@ -34,9 +34,7 @@ from .helpers import (
     strip_part_ext,
     MetaValueParser,
 )
-from .ldrcolour import LdrColour
-from .constants import *
-from .support.ldview import LDViewRender
+from pyldraw import *
 
 
 class LdrObj:
@@ -770,6 +768,13 @@ class LdrPart(LdrObj):
     @property
     def is_part(self):
         return self.name.lower().endswith(".dat")
+
+    @property
+    def description(self):
+        """Looks up the part description from the LDraw library"""
+        if self.is_part:
+            return part_description(self.name)
+        return None
 
     @property
     def is_model(self):

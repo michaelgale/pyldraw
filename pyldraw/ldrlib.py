@@ -40,10 +40,27 @@ def ldraw_folders():
 
 
 def find_part(name):
+    """Returns the path of a part in the LDraw library"""
     name = name.replace("\\", os.sep)
     for folder in ldraw_folders():
         fn = folder + os.sep + name
         path = pathlib.Path(fn)
         if path.is_file():
             return fn
+    return None
+
+
+def part_description(name):
+    """Returns the description of a part in the LDraw library"""
+    if not name.lower().endswith(".dat"):
+        name = name + ".dat"
+    fn = find_part(name)
+    if fn is not None:
+        desc = None
+        with open(fn, "r") as fp:
+            line = fp.readline()
+            if line.startswith("0"):
+                ls = line.split()
+                desc = " ".join(ls[1:])
+        return desc
     return None

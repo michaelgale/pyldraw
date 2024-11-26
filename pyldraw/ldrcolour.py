@@ -86,6 +86,19 @@ class LdrColour:
             return "[bold]0"
         return "[%s reverse]%s[not reverse]" % (self.hex_code, self.code)
 
+    def __eq__(self, other):
+        if not isinstance(other, LdrColour):
+            return False
+        if self.code == other.code:
+            return True
+        if (
+            self.red == other.red
+            and self.green == other.green
+            and self.blue == other.blue
+        ):
+            return True
+        return False
+
     @property
     def code(self):
         return self._code
@@ -166,6 +179,10 @@ class LdrColour:
             self.r, self.g, self.b = r[0], r[1], r[2]
         else:
             self.r, self.g, self.b = r, g, b
+        if any((x > 1.0 for x in (self.r, self.g, self.b))):
+            self.r = self.r / 255
+            self.g = self.g / 255
+            self.b = self.b / 255
 
     @staticmethod
     def code_to_rgb(code):

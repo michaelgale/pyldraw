@@ -29,7 +29,6 @@ from collections import Counter
 
 from .geometry import Vector, BoundBox, Matrix
 from pyldraw import *
-from .ldrlib import find_part
 
 
 class LdrModel:

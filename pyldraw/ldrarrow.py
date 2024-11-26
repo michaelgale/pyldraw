@@ -25,7 +25,7 @@
 
 from .geometry import safe_vector, Matrix, Vector
 from .helpers import vector_str
-from pyldraw import LdrColour, LdrTriangle, LdrQuad, LdrLine
+from pyldraw import *
 
 
 class LdrArrow:

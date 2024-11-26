@@ -29,11 +29,7 @@ from collections import Counter
 from rich import print
 
 from .geometry import Vector
-from .constants import *
-from .ldrcolour import LdrColour
-from .ldrmodel import LdrModel
-from .ldrstep import BuildStep
-from .ldrutils import file_name_with_index
+from pyldraw import *
 
 
 class UnwrapCtx:
@@ -118,15 +114,16 @@ class LdrFile:
                 continue
             ks = k.split("-")
             colour = LdrColour(int(ks[1]))
+            desc = part_description(ks[0])
             if any(x in colour.name for x in ("Black", "Brown", "Dark")):
                 print(
-                    "[white]%3dx[/] [bold white on %s]%-20s[/] [%s]%s[/]"
-                    % (v, colour.hex_code, colour.name, RICH_PART_COLOUR, ks[0])
+                    "[white]%3dx[/] [white on %s]%-20s[/] [%s]%-5s[/] %s"
+                    % (v, colour.hex_code, colour.name, RICH_PART_COLOUR, ks[0], desc)
                 )
             else:
                 print(
-                    "[white]%3dx[/] [bold black on %s]%-20s[/] [%s]%s[/]"
-                    % (v, colour.hex_code, colour.name, RICH_PART_COLOUR, ks[0])
+                    "[white]%3dx[/] [black on %s]%-20s[/] [%s]%-5s[/] %s"
+                    % (v, colour.hex_code, colour.name, RICH_PART_COLOUR, ks[0], desc)
                 )
 
     def write_model_to_file(self, fn, idx=None):

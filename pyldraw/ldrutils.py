@@ -135,10 +135,3 @@ def obj_exclusive(a, b):
     """returns the elements of a and b which are not common"""
     c = obj_union(a, b)
     return obj_difference(c, obj_intersect(a, b))
-
-
-def file_name_with_index(fn, idx):
-    """inserts an index into a filename's basename before extension"""
-    path, base = os.path.split(fn)
-    base, ext = os.path.splitext(base)
-    return path + os.sep + "%s_%d" % (base, idx) + ext
