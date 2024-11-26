@@ -128,30 +128,36 @@ class LdrStep:
         else:
             objs = self.objs
         for o in objs:
-            if o.has_start_capture_meta and not is_captured:
-                is_captured = True
-                group["trigger"] = o.raw
-                group["objs"] = []
-            elif o.has_end_capture_meta and is_captured:
-                delimited.append(group)
-                group = {}
-                is_captured = False
+            if isinstance(o, LdrMeta):
+                if o.has_start_capture_meta and not is_captured:
+                    is_captured = True
+                    group["trigger"] = o
+                    group["objs"] = []
+                elif o.has_end_capture_meta and is_captured:
+                    delimited.append(group)
+                    group = {}
+                    is_captured = False
             elif is_captured:
                 if isinstance(o, LdrPart):
                     group["objs"].append(o)
         for d in delimited:
-            if "!PY ARROW" in d["trigger"]:
-                vals = d["trigger"].split()[4:7]
+            if d["trigger"].is_arrow_capture:
+                o = d["trigger"]
+                vals = [o.parameters["x"], o.parameters["y"], o.parameters["z"]]
                 vals = [quantize(v) for v in vals]
                 d["offset"] = safe_vector(vals)
         self._delimited = delimited
         return self._delimited
 
-    def iter_meta_objs(self):
+    def iter_meta_objs(self, ignore_delimiters=False):
         """Generator which iterates over step objects which represent meta commands"""
         for o in self.objs:
             if isinstance(o, LdrMeta):
-                yield o
+                if ignore_delimiters:
+                    if not o.is_delimiter:
+                        yield o
+                else:
+                    yield o
 
     def step_has_meta_command(self, attr=None):
         """Looks for an LdrMeta object with a desired attribute.
@@ -242,6 +248,7 @@ class BuildStep(LdrStep):
         self.aspect = Vector(0, 0, 0)
         self.pos = Vector(0, 0, 0)
         self.idx = None
+        self.num = 1
         self.level = None
         self.qty = 1
         self.model_name = None
@@ -279,9 +286,10 @@ class BuildStep(LdrStep):
         else:
             model_state = " "
         return (
-            "Step: %3d%s level %1d%s%s step-parts: %3d model-parts: %4d scale %.2f aspect %-11s qty: %d '%s'"
+            "Step: %3d %3d%s level %1d%s%s step-parts: %3d model-parts: %4d scale %.2f aspect %-11s qty: %d '%s'"
             % (
                 self.idx,
+                self.num,
                 indent,
                 self.level,
                 postdent,
@@ -353,6 +361,11 @@ class BuildStep(LdrStep):
         """Returns a list of all LdrObj representing the total model"""
         return self._model_objs
 
+    @property
+    def is_virtual(self):
+        """Returns true if this step just contains meta lines and no added parts to the model."""
+        return len(self.step_parts) == 0
+
     def _modified_objs(self, only_for_step=True):
         """Ensures objects that captured between delimiter meta lines are modified
         as applicable, e.g. translated, hidden, etc."""
@@ -370,15 +383,17 @@ class BuildStep(LdrStep):
                     del_objs = filter_objs(objs, path=obj.path)
                 else:
                     del_objs = filter_objs(objs, sha1_hash=obj.sha1_hash)
-                objs = obj_difference(objs, del_objs)
                 if "offset" in d:
                     offset = (
                         Vector(d["offset"])
                         * Matrix.euler_to_rot_matrix(self.aspect).transpose()
                     )
                     mod_objs.extend([o.translated(offset) for o in del_objs])
-
-            mod_objs.extend(self.arrows_for_offset(mod_objs, d["offset"]))
+                objs = obj_difference(objs, del_objs)
+            if "offset" in d:
+                mod_objs.extend(self.arrows_for_offset(mod_objs, d["offset"]))
+            if d["trigger"].is_hide_part_capture:
+                objs = obj_difference(objs, del_objs)
         return obj_union(objs, mod_objs)
 
     def arrows_for_offset(self, objs, offset):
@@ -400,6 +415,22 @@ class BuildStep(LdrStep):
     def model_parts(self):
         """Returns a list of LdrPart objects representing the total model at this step."""
         return self._modified_objs(only_for_step=False)
+
+    @property
+    def pli_parts(self):
+        """Returns a dictionary part keys and quantities representing the PLI for this step."""
+        pli = Counter()
+        for o in self.step_parts:
+            if o.part_key is not None:
+                pli.update([o.part_key])
+        for d in self.delimited_objs:
+            if d["trigger"].is_hide_pli_capture:
+                for o in d["objs"]:
+                    if o.part_key is not None:
+                        if o.part_key in pli:
+                            pli.pop(o.part_key)
+        pli = pli.most_common()
+        return dict(pli)
 
     def bound_box(self, parts):
         """Returns the bounding box of the model at this step."""

@@ -101,23 +101,25 @@ class LdrObj:
     @property
     def has_start_capture_meta(self):
         raw_text = self.raw.upper()
-        if "BEGIN" in raw_text:
-            return True
-        else:
-            for e in START_META:
-                if all(s in raw_text for s in e.split()):
-                    return True
+        if isinstance(self, LdrMeta):
+            if "BEGIN" in raw_text:
+                return True
+            else:
+                for e in START_META:
+                    if all(s in raw_text for s in e.split()):
+                        return True
         return False
 
     @property
     def has_end_capture_meta(self):
         raw_text = self.raw.upper()
-        if "END" in raw_text:
-            return True
-        else:
-            for e in END_META:
-                if all(s in raw_text for s in e.split()):
-                    return True
+        if isinstance(self, LdrMeta):
+            if "END" in raw_text:
+                return True
+            else:
+                for e in END_META:
+                    if all(s in raw_text for s in e.split()):
+                        return True
         return False
 
     @property
@@ -309,6 +311,8 @@ class LdrObj:
 
     @staticmethod
     def from_str(s):
+        from rich import print
+
         if s is None:
             return None
         if len(s) < 2:
@@ -317,8 +321,13 @@ class LdrObj:
         line_type = int(split_line[0].lstrip())
         if line_type == 0:
             if len(split_line) > 1:
-                cmd = split_line[1].upper()
-                if cmd in LDR_META_DICT or cmd.startswith("!"):
+                for k, _ in LDR_META_DICT.items():
+                    if k in s:
+                        ks = k.split()
+                        first = ks[0] if len(ks) > 1 else k
+                        if split_line[1].startswith(first):
+                            return LdrMeta.from_str(s)
+                if split_line[1].startswith("!"):
                     return LdrMeta.from_str(s)
                 else:
                     return LdrComment.from_str(s)
@@ -369,6 +378,7 @@ class LdrMeta(LdrObj):
     def __init__(self, **kwargs):
         self.text = ""
         self.command = ""
+        self.values = ""
         self.parameters = None
         self.param_spec = None
         super().__init__(**kwargs)
@@ -415,6 +425,10 @@ class LdrMeta(LdrObj):
     @property
     def end_of_model(self):
         return self.command.upper() == "NOFILE"
+
+    @property
+    def is_delimiter(self):
+        return self.start_of_model or self.end_of_model or self.is_step_delimiter
 
     @property
     def rotation_absolute(self):
@@ -524,6 +538,24 @@ class LdrMeta(LdrObj):
             return True
         return None
 
+    @property
+    def is_arrow_capture(self):
+        if self.command.upper() == "!PY ARROW BEGIN":
+            return True
+        return None
+
+    @property
+    def is_hide_part_capture(self):
+        if self.command.upper() == "!PY HIDE_PARTS BEGIN":
+            return True
+        return None
+
+    @property
+    def is_hide_pli_capture(self):
+        if self.command.upper() == "!PY HIDE_PLI BEGIN":
+            return True
+        return None
+
     @staticmethod
     def from_str(s):
         """Returns a LdrMeta object by parsing a string representation of LDraw meta line 0"""
@@ -541,7 +573,7 @@ class LdrMeta(LdrObj):
                 obj.values = obj.text.replace(k, "").lstrip()
                 mp = MetaValueParser(v, vals=obj.values)
                 obj.parameters = mp.param_dict
-                # obj.parameters = parse_params(obj.param_spec, obj.values)
+                return obj
         return obj
 
     @staticmethod

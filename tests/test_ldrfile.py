@@ -69,15 +69,15 @@ TEST_MODEL3 = """
 1 70 30 -8 -30 0 0 -1 0 1 0 1 0 0 2420.dat
 0 STEP
 1 14 0 -32 30 -1 0 0 0 1 0 -0 0 -1 3010.dat
-0 !PLI BEGIN IGN
+0 PLI BEGIN IGN
 1 1 -60 -32 -80 1 0 0 0 1 0 -0 0 1 submodel2.ldr
 1 1 60 -32 -80 1 0 0 0 1 0 -0 0 1 submodel2.ldr
-0 !PLI END
+0 PLI END
 1 1 0 -48 -70 1 0 0 0 1 0 -0 0 1 3010.dat
 1 4 40 -24 70 1 0 0 0 1 0 -0 0 1 3010.dat
-0 BUFEXCHG A STORE
+0 !PY HIDE_PARTS BEGIN
 1 71 0 -24 -70 1 0 0 0 1 0 -0 0 1 3008.dat
-0 BUFEXCHG RETRIEVE
+0 !PY HIDE_PARTS END
 0 STEP
 0 NOFILE
 """
@@ -135,3 +135,33 @@ def test_ldrfile():
     # print("Piece count   : %dx" % (f1.piece_count))
     # print("Element count : %dx" % (f1.element_count))
     # print("Colour count  : %dx" % (f1.colour_count))
+
+
+def test_ldrfile_ext():
+    f1 = LdrFile("./tests/testfiles/test_file3.ldr", initial_aspect=(0, 45, 0))
+    assert len(f1.build_steps) == 23
+    assert f1.non_virtual_step_count == 19
+    for step in f1.iter_steps():
+        pli = step.pli_parts
+        if step.idx == 3:
+            assert len(pli) == 2
+            assert "3001-5" in pli
+            assert "3001-14" in pli
+            assert pli["3001-5"] == 1
+            assert pli["3001-14"] == 1
+        elif step.idx == 4:
+            assert len(pli) == 1
+            assert "3008-71" in pli
+            assert "3010-4" not in pli
+            assert pli["3008-71"] == 1
+    # for step in f1.iter_build_steps():
+    #     print(step)
+
+    # for o in step.step_parts:
+    #     print(o, o.path)
+
+
+# for o in step.iter_meta_objs():
+#     print(o)
+# for p in step.pli_parts:
+#     print(p)

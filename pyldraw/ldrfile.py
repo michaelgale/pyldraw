@@ -45,6 +45,7 @@ class UnwrapCtx:
         self.model_name = model_name
         self.model = model
         self.idx = 0
+        self.num = 1
         self.level = 0
         self.qty = 0
         self.model_objs = []
@@ -100,7 +101,7 @@ class LdrFile:
                     m = LdrModel.from_str(model_str, model_name)
                     self.models[model_name] = m
             self.root = LdrModel.from_str(root, name="root")
-        self.build_steps, _ = self.unwrap_build_steps()
+        self.build_steps, _, _ = self.unwrap_build_steps()
 
     def print_raw(self):
         for s in self.build_steps:
@@ -161,6 +162,18 @@ class LdrFile:
             c.update([o.colour.code])
         return len(c)
 
+    @property
+    def non_virtual_step_count(self):
+        """Returns the number of steps which actually increment the model with new parts."""
+        count = sum((1 for s in self.build_steps if not s.is_virtual))
+        return count
+
+    def iter_build_steps(self):
+        """Iterates through unwrapped building steps yielding a BuildStep object."""
+        for step in self.build_steps:
+            if len(step.step_parts) > 0:
+                yield step
+
     def iter_steps(self):
         """Iterates through unwrapped building steps yielding a BuildStep object."""
         for step in self.build_steps:
@@ -202,16 +215,18 @@ class LdrFile:
                         name,
                         self.models[name],
                         idx=ctx.idx,
+                        num=ctx.num,
                         level=ctx.level + 1,
                         qty=qty,
                         aspect=ctx.aspect,
                         scale=ctx.scale,
                     )
-                    _, new_idx = self.unwrap_build_steps(
+                    _, new_idx, new_num = self.unwrap_build_steps(
                         ctx=new_ctx,
                         unwrapped=unwrapped,
                     )
                     ctx.idx = new_idx
+                    ctx.num = new_num
             build_step = BuildStep(
                 objs=step.objs,
                 dpi=self.dpi,
@@ -224,5 +239,7 @@ class LdrFile:
                 ctx.aspect = Vector(self.initial_aspect)
                 build_step.aspect = ctx.aspect
             unwrapped.append(build_step)
+            if not build_step.is_virtual:
+                ctx.num += 1
             ctx.idx += 1
-        return unwrapped, ctx.idx
+        return unwrapped, ctx.idx, ctx.num

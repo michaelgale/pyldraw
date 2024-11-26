@@ -57,7 +57,7 @@ def test_ldvrender_features():
             if i == 1:
                 assert len(d) == 1
                 assert "trigger" in d[0]
-                assert d[0]["trigger"] == "0 !PY ARROW BEGIN 0 -60 0"
+                assert d[0]["trigger"].raw == "0 !PY ARROW BEGIN 0 -60 0"
                 assert "offset" in d[0]
                 assert d[0]["offset"].almost_same_as((0, -60, 0))
         # step.render_model(**LDV_ARGS)

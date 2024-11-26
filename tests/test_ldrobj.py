@@ -50,6 +50,12 @@ def test_ldrmeta():
     assert isinstance(obj, LdrMeta)
     assert "FLIPY" in obj.parameters["flags"]
     assert obj.rotation_relative == (0, 180, 0)
+    o1 = LdrObj.from_str("0 PLI BEGIN IGN")
+    assert isinstance(o1, LdrMeta)
+    o1 = LdrObj.from_str("0 PLI BEGIN")
+    assert not isinstance(o1, LdrMeta)
+    o1 = LdrObj.from_str("0 !PLI BEGIN IGN")
+    assert isinstance(o1, LdrMeta)
 
 
 def test_ldr_py_meta():
