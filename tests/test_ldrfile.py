@@ -126,6 +126,33 @@ def test_ldrfile():
     assert f1.piece_count == 27
     assert f1.element_count == 14
     assert f1.build_steps[-1].sha1_hash == "5af110bece15f97c8d2276975f4f04b3c068057a"
+    assert f1.colour_count == 10
+    assert len(f1.objs_at_step(5)) == 2
+    assert len(f1.step_parts_at_step(3)) == 4
+    assert repr(f1) == "LdrFile(./tests/testfiles/test_file1.ldr)"
+    s = f1.build_steps[3]
+    bb = s.model_bound_box
+    assert bb.xlen == 100
+    assert bb.ylen == 20
+    assert bb.zlen == 100
+    bb = s.step_bound_box
+    assert bb.xlen == 100
+    assert bb.ylen == 12
+    assert bb.zlen == 100
+    assert (
+        s.outline_filename
+        == "3o_1_300_1.00_6ec016fcd9ae6e4183dc3b6972d2f8ca8026236f.png"
+    )
+    assert len(s.unmasked_filenames) == 1
+    assert (
+        s.unmasked_filenames[0][0]
+        == "3u_1_300_1.00_6ec016fcd9ae6e4183dc3b6972d2f8ca8026236f.png"
+    )
+    assert len(s.masked_filenames) == 1
+    assert (
+        s.masked_filenames[0][0]
+        == "3m_1_300_1.00_6ec016fcd9ae6e4183dc3b6972d2f8ca8026236f.png"
+    )
 
     # for step in f1.iter_steps():
     #     print(step)

@@ -47,7 +47,7 @@ lint-check: ## check if lint status is consistent between commits
 	@black --diff --check tests/*.py
 
 test: ## run tests quickly with the default Python
-	@py.test -s -v
+	@py.test -s -v --cov=tests
 
 coverage: ## check code coverage quickly with the default Python
 	coverage run --source pyldraw -m pytest

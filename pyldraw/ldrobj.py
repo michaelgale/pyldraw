@@ -841,7 +841,12 @@ class LdrPart(LdrObj):
         ldv.set_scale(scale)
         ldv.render_from_parts([self], fn)
 
-    def pli_filename(self, scale, aspect, dpi):
+    def pli_filename(self, scale=None, aspect=None, dpi=None, **kwargs):
+        scale = scale if scale is not None else DEFAULT_PLI_SCALE
+        aspect = aspect if aspect is not None else DEFAULT_PLI_ASPECT
+        dpi = dpi if dpi is not None else DEFAULT_DPI
+        if "dpi" in kwargs:
+            dpi = kwargs["dpi"]
         aspect = tuple(int(v) & 0xFF for v in aspect[:3])
         name = strip_part_ext(self.name)
         fn = "%s-%d-%3d-%.2f-%02X%02X%02X.png" % (

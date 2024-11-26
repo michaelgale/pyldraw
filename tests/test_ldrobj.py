@@ -158,3 +158,4 @@ def test_find_parts():
     ldv = LDViewRender(**LDV_ARGS)
     fn = m1.name + ".png"
     ldv.render_from_parts(prims, fn)
+    assert os.path.isfile(IMG_PATH + fn)

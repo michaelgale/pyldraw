@@ -1,5 +1,6 @@
 # LdrFile tests
 
+import os.path
 from rich import print, inspect
 from pyldraw import *
 
@@ -27,6 +28,8 @@ TEST_STEP_RANGE = (1, 14)
 def test_ldvrender_part():
     p1 = LdrPart(name="3001.dat", colour=4)
     p1.render_image(**LDV_ARGS)
+    fn = IMG_PATH + p1.pli_filename(**LDV_ARGS)
+    assert os.path.isfile(fn)
 
 
 def test_ldvrender_file():
