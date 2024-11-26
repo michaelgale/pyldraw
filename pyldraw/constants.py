@@ -162,6 +162,7 @@ LDR_COLOUR_NAME = {
     184: "Metallic Bright Red",
     186: "Metallic Dark Green",
     368: "Neon Yellow",
+    402: "Reddish Orange",
     801: "Arrow Blue",
     802: "Arrow Green",
     804: "Arrow Red",
@@ -304,6 +305,7 @@ LDR_COLOUR_HEX = {
     184: "d60026",  #'Metallic Bright Red',
     186: "008e3c",  #'Metallic Dark Green'
     368: "EBD800",  # Neon Yellow
+    402: "CA4C0B",  # Reddish Orange
     801: "0830FF",  # Arrow Blue
     802: "08B010",  # Arrow Green
     804: "FF0000",  # Arrow Red
@@ -392,6 +394,7 @@ LDR_META_DICT = {
     "!PY INSERT_FILE": "<filename>",
     "!PY INSERT_BOM": "(COL_WISE | ROW_WISE | SHOW_LEGO_ID | SHOW_TITLE)",
     "!PY NEW_PAGE_NUM": "<number>",
+    "!COLOUR": "<name> <CODE code> [VALUE value] [EDGE edge] [LUMINANCE luminance] [ALPHA alpha]",
 }
 
 RICH_COMMENT_COLOUR = "#808080"
@@ -408,10 +411,16 @@ DEFAULT_PLI_SCALE = 0.57
 DEFAULT_PLI_ASPECT = (-35, -35, 0)
 DEFAULT_DPI = 300
 
-MASKED_OUT_COLOUR = 502
-NON_MASKED_COLOUR = 599
-ADDED_PARTS_COLOUR = 598
-ADDED_PARTS_HSV_HUE = 150
+CLEAR_MASK_CODE = 502
+OPAQUE_MASK_CODE = 599
+ADDED_MASK_CODE = 598
+
+CLEAR_MASK_COLOUR = "#80FF80"
+OPAQUE_MASK_COLOUR = "#20FF20"
+ADDED_MASK_COLOUR = "#901F76"
+ARROW_RED_COLOUR = "#FF0000"
+ARROW_BLUE_COLOUR = "#0830FF"
+ARROW_GREEN_COLOUR = "#08C010"
 
 # 0 !COLOUR TrueBlack                                             CODE 500   VALUE #05131D   EDGE #05131D
 # 0 !COLOUR TrueWhite                                             CODE 501   VALUE #FFFFFF   EDGE #FFFFFF

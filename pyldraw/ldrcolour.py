@@ -27,6 +27,7 @@ import math
 import slugify
 
 from .constants import *
+from .support.imgutils import ImageMixin
 
 
 class LdrColour:
@@ -44,7 +45,6 @@ class LdrColour:
         self.alpha = None
         self.luminance = None
         self.label = None
-        self.edge = None
         if colour is not None:
             if isinstance(colour, int):
                 self.code = colour
@@ -59,9 +59,12 @@ class LdrColour:
                     c = LdrColour.code_from_hex(colour)
                     if c is not None:
                         self.code = c
+                    else:
+                        self.set_with_hex(colour)
         else:
             if red is not None and green is not None and blue is not None:
                 self.set_rgb(red, green, blue)
+        self.edge = "#05131D" if not self.code == 0 else "#FFFFFF"
         for k, v in kwargs.items():
             if k in self.__dict__:
                 self.__dict__[k] = v
@@ -85,6 +88,22 @@ class LdrColour:
         if self.code == "0":
             return "[bold]0"
         return "[%s reverse]%s[not reverse]" % (self.hex_code, self.code)
+
+    def rich_name(self):
+        if any(x in self.name for x in ("Black", "Brown", "Dark")):
+            return "[white]%3d[/] [white on %s]%-20s[/] [white]%6s[/]" % (
+                self.code,
+                self.hex_code,
+                self.name,
+                self.hex_code,
+            )
+        else:
+            return "[white]%3d[/] [black on %s]%-20s[/] [white]%6s[/]" % (
+                self.code,
+                self.hex_code,
+                self.name,
+                self.hex_code,
+            )
 
     def __eq__(self, other):
         if not isinstance(other, LdrColour):
@@ -110,28 +129,34 @@ class LdrColour:
 
     @property
     def red(self):
+        """Red channel value between 0.0 and 1.0"""
         return self.r
 
     @property
     def green(self):
+        """Green channel value between 0.0 and 1.0"""
         return self.g
 
     @property
     def blue(self):
+        """Blue channel value between 0.0 and 1.0"""
         return self.b
 
     @property
     def name(self):
+        """LDraw colour name"""
         if self.code in LDR_COLOUR_NAME:
             return LDR_COLOUR_NAME[self.code]
         return self.label
 
     @property
     def name_slug(self):
+        """Slugified LDraw colour name"""
         return slugify.slugify("-".join(self.name.split()))
 
     @property
     def compact_name(self):
+        """Compact/abbreviated LDraw colour name"""
         name = self.name
         replacements = [
             "Bright Br",
@@ -150,6 +175,7 @@ class LdrColour:
 
     @property
     def hex_code(self):
+        """Hexadecimal colour code string"""
         return "#%02X%02X%02X" % (
             int(self.r * 255.0),
             int(self.g * 255.0),
@@ -158,10 +184,37 @@ class LdrColour:
 
     @property
     def bgr(self):
+        """Return a tuple of (blue, green, red) as int8 values."""
         return (int(self.b * 255), int(self.g * 255), int(self.r * 255))
 
     @property
+    def rgbint(self):
+        """Return a tuple of (red, green, blue) as int8 values."""
+        return (int(self.r * 255), int(self.g * 255), int(self.b * 255))
+
+    @property
+    def hsv(self):
+        """Return a tuple of (hue, saturation, brightness) as int8 values."""
+        return ImageMixin.bgr2hsv(self.bgr)
+
+    @property
+    def hue(self):
+        """Hue value as int8 range 0 ~ 180"""
+        return int(self.hsv[0])
+
+    @property
+    def saturation(self):
+        """Saturation value as int8 range 0 ~ 255"""
+        return int(self.hsv[1])
+
+    @property
+    def brightness(self):
+        """Brightness value as int8 range 0 ~ 255"""
+        return int(self.hsv[2])
+
+    @property
     def high_contrast_complement(self):
+        """Return a high contrast complement colour value, i.e. black or white depending on this colour's intensity"""
         level = self.r * self.r + self.g * self.g + self.b * self.b
         level = math.sqrt(level)
         if level < 1.2:
@@ -170,9 +223,11 @@ class LdrColour:
 
     @property
     def rgb(self):
+        """Return a tuple of (red, green, blue) as float values 0.0 ~ 1.0"""
         return self.r, self.g, self.b
 
     def set_rgb(self, r, g=None, b=None):
+        """Set red, green, and blue channel values."""
         if r is None:
             return
         if isinstance(r, (tuple, list)):
@@ -183,6 +238,14 @@ class LdrColour:
             self.r = self.r / 255
             self.g = self.g / 255
             self.b = self.b / 255
+
+    def set_with_hex(self, val):
+        """Set red, green, and blue channel values with a hex code."""
+        rgb = val.replace("#", "")
+        [rd, gd, bd] = tuple(int(rgb[i : i + 2], 16) for i in (0, 2, 4))
+        self.r = float(rd) / 255.0
+        self.g = float(gd) / 255.0
+        self.b = float(bd) / 255.0
 
     @staticmethod
     def code_to_rgb(code):
@@ -208,36 +271,42 @@ class LdrColour:
 
     @staticmethod
     def CLEAR_MASK():
-        c = LdrColour(502, alpha=2)
-        c.set_rgb(LdrColour.code_to_rgb("#80FF80"))
+        """LdrColour preset with a colour used for masking clear"""
+        c = LdrColour(CLEAR_MASK_CODE, alpha=2, edge=CLEAR_MASK_COLOUR)
+        c.set_rgb(LdrColour.code_to_rgb(CLEAR_MASK_COLOUR))
         return c
 
     @staticmethod
     def OPAQUE_MASK():
-        c = LdrColour(599)
-        c.set_rgb(LdrColour.code_to_rgb("#20FF20"))
+        """LdrColour preset with a colour used for masking opaque"""
+        c = LdrColour(OPAQUE_MASK_CODE, edge=OPAQUE_MASK_COLOUR)
+        c.set_rgb(LdrColour.code_to_rgb(OPAQUE_MASK_COLOUR))
         return c
 
     @staticmethod
     def ADDED_MASK():
-        c = LdrColour(598, luminance=100)
-        c.set_rgb(LdrColour.code_to_rgb("#901F76"))
+        """LdrColour preset with a colour used for masking parts added to a step"""
+        c = LdrColour(ADDED_MASK_CODE, luminance=100, edge=ADDED_MASK_COLOUR)
+        c.set_rgb(LdrColour.code_to_rgb(ADDED_MASK_COLOUR))
         return c
 
     @staticmethod
     def ARROW_RED():
-        c = LdrColour(804, luminance=220)
-        c.set_rgb(LdrColour.code_to_rgb("#FF0000"))
+        """LdrColour preset for red arrow shapes"""
+        c = LdrColour(804, luminance=220, edge=ARROW_RED_COLOUR)
+        c.set_rgb(LdrColour.code_to_rgb(ARROW_RED_COLOUR))
         return c
 
     @staticmethod
     def ARROW_BLUE():
-        c = LdrColour(801, luminance=220)
-        c.set_rgb(LdrColour.code_to_rgb("#0830FF"))
+        """LdrColour preset for blue arrow shapes"""
+        c = LdrColour(801, luminance=220, edge=ARROW_BLUE_COLOUR)
+        c.set_rgb(LdrColour.code_to_rgb(ARROW_BLUE_COLOUR))
         return c
 
     @staticmethod
     def ARROW_GREEN():
-        c = LdrColour(802, luminance=220)
-        c.set_rgb(LdrColour.code_to_rgb("#08C010"))
+        """LdrColour preset for green arrow shapes"""
+        c = LdrColour(802, luminance=220, edge=ARROW_GREEN_COLOUR)
+        c.set_rgb(LdrColour.code_to_rgb(ARROW_GREEN_COLOUR))
         return c

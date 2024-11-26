@@ -2,7 +2,7 @@
 
 # fmt: off
 __project__ = 'pyldraw'
-__version__ = '0.3.1'
+__version__ = '0.3.2'
 # fmt: on
 
 VERSION = __project__ + "-" + __version__

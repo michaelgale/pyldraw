@@ -468,9 +468,10 @@ class BuildStep(LdrStep):
         unmasked = normalize_filename(self.masked_filenames[0][0], path)
         model = normalize_filename(self.model_filename(), path)
         outline = normalize_filename(self.outline_filename, path)
+        mask_colour = LdrColour.ADDED_MASK()
         img = ImageMixin.merge_with_outlines(
             model,
-            ADDED_PARTS_HSV_HUE,
+            mask_colour.hue,
             unmasked,
             self.outline_colour.bgr,
             self.outline_width,
@@ -497,7 +498,7 @@ class BuildStep(LdrStep):
 
     def render_unmasked_image(self, **kwargs):
         """Renders the model image with all new parts in ADDED_PARTS_COLOUR and
-        all other parts in a transparent NON_MASKED_COLOUR colour"""
+        all other parts in a transparent CLEAR_MASK_CODE colour"""
         path = kwargs["output_path"]
         for fn, name in self.unmasked_filenames:
             fn = normalize_filename(fn, path)
@@ -506,7 +507,7 @@ class BuildStep(LdrStep):
 
     def render_masked_image(self, **kwargs):
         """Renders the model image with all new parts in ADDED_PARTS_COLOUR and
-        all other parts in an opaque MASKED_OUT_COLOUR colour"""
+        all other parts in an opaque OPAQUE_MASK_CODE colour"""
         path = kwargs["output_path"]
         for fn, name in self.masked_filenames:
             fn = normalize_filename(fn, path)

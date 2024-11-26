@@ -27,8 +27,6 @@ import os, tempfile
 import datetime
 import subprocess, shlex
 
-from PIL import Image, ImageChops, ImageFilter
-
 from .imgutils import ImageMixin
 
 
@@ -66,7 +64,6 @@ SNAPSHOT_DICT = [
     "page_width",
     "page_height",
     "auto_crop",
-    "image_smooth",
     "no_lines",
     "wireframe",
     "quality_lighting",
@@ -112,7 +109,6 @@ class LDViewRender:
         self.page_width = 8.5
         self.page_height = 11.0
         self.auto_crop = True
-        self.image_smooth = False
         self.no_lines = False
         self.wireframe = False
         self.quality_lighting = True
@@ -142,9 +138,7 @@ class LDViewRender:
                 _coord_str(self.pix_width, self.pix_height, " x "),
             )
         )
-        s.append(
-            " Auto crop: %s  Image smooth: %s" % (self.auto_crop, self.image_smooth)
-        )
+        s.append(" Auto crop: %s" % (self.auto_crop))
         s.append(" Camera distance: %d" % (self.cam_dist))
         return "\n".join(s)
 
@@ -279,8 +273,6 @@ class LDViewRender:
 
         if self.auto_crop:
             self.crop(filename)
-        if self.image_smooth:
-            self.smooth(filename)
 
     def crop(self, filename):
         """Crop image file."""

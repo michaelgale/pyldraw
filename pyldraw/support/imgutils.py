@@ -150,8 +150,8 @@ class ImageMixin:
         a provided background colour or the top left pixel colour."""
         img = ImageMixin.auto_open(img)
         thr = bg if bg is not None else img[0, 0]
-        thr_l = tuple(int(clamp_value(thr[i] - tol, 0, 255)) for i in range(4))
-        thr_h = tuple(int(clamp_value(thr[i] + tol, 0, 255)) for i in range(4))
+        thr_l = tuple(int(clamp_value(thr[i] - tol, 0, 255)) for i in range(len(thr)))
+        thr_h = tuple(int(clamp_value(thr[i] + tol, 0, 255)) for i in range(len(thr)))
         thresh = cv2.inRange(img, thr_l, thr_h)
         thresh = 255 - thresh
         x, y, w, h = cv2.boundingRect(thresh)
@@ -188,6 +188,13 @@ class ImageMixin:
         """Returns the HSV colour space representation of an image"""
         img = ImageMixin.auto_open(img)
         return cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+
+    @staticmethod
+    def bgr2hsv(bgr):
+        """Converts a BGR colour tuple into a tuple of HSV colour."""
+        bgr = np.uint8([[[int(x) for x in bgr]]])
+        img = cv2.cvtColor(bgr, cv2.COLOR_BGR2HSV)
+        return tuple(img[0, 0])
 
     @staticmethod
     def bgr_image(img):
