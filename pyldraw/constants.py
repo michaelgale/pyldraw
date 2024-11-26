@@ -394,7 +394,7 @@ LDR_META_DICT = {
     "!PY INSERT_FILE": "<filename>",
     "!PY INSERT_BOM": "(COL_WISE | ROW_WISE | SHOW_LEGO_ID | SHOW_TITLE)",
     "!PY NEW_PAGE_NUM": "<number>",
-    "!COLOUR": "<name> <CODE code> [VALUE value] [EDGE edge] [LUMINANCE luminance] [ALPHA alpha]",
+    "!COLOUR": "<name> <CODE code> <VALUE value> <EDGE edge> [LUMINANCE luminance] [ALPHA alpha] (CHROME | PEARLESCENT | METAL | RUBBER)",
 }
 
 RICH_COMMENT_COLOUR = "#808080"

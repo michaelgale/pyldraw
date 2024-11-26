@@ -1,5 +1,7 @@
 # LdrColour tests
 
+import pytest
+
 from rich import print
 from pyldraw import *
 
@@ -99,3 +101,51 @@ def test_names():
     c1 = LdrColour(1)
     o1 = LdrMeta.from_colour(c1)
     assert o1.raw == "0 !COLOUR Blue CODE 1 VALUE #0055BF EDGE #05131D"
+
+    s1 = (
+        "0 !COLOUR Rubber_Sand_Green  CODE 10378 VALUE #708E7C   EDGE #05131D    RUBBER"
+    )
+    o1 = LdrMeta.from_str(s1)
+    p1 = o1.parameters
+    assert "RUBBER" in p1["flags"]
+    assert p1["code"] == "10378"
+    assert p1["value"] == "#708E7C"
+    assert p1["edge"] == "#05131D"
+    assert p1["name"] == "Rubber_Sand_Green"
+
+    s2 = "0 !COLOUR Metallic_Silver  CODE 80 VALUE #767676  EDGE #05131D METAL"
+    o2 = LdrMeta.from_str(s2)
+    p2 = o2.parameters
+    assert "METAL" in p2["flags"]
+    assert p2["code"] == "80"
+    assert p2["value"] == "#767676"
+    assert p2["edge"] == "#05131D"
+    assert p2["name"] == "Metallic_Silver"
+
+    s3 = "0 !COLOUR Flat_Silver  CODE 179  VALUE #898788  EDGE #05131D  PEARLESCENT"
+    o3 = LdrMeta.from_str(s3)
+    p3 = o3.parameters
+    assert "PEARLESCENT" in p3["flags"]
+    assert p3["code"] == "179"
+    assert p3["value"] == "#898788"
+    assert p3["edge"] == "#05131D"
+    assert p3["name"] == "Flat_Silver"
+
+    c1 = LdrColour.from_meta(o3)
+    assert c1.code == 179
+    assert c1.hex_code == "#898788"
+    assert c1.edge == "#05131D"
+    assert c1.label == "Flat Silver"
+    assert c1.material == "PEARLESCENT"
+
+    o1 = LdrMeta.from_colour(c1)
+    assert (
+        o1.raw
+        == "0 !COLOUR Flat_Silver CODE 179 VALUE #898788 EDGE #05131D PEARLESCENT"
+    )
+    z = tuple((1, 2, 3))
+    with pytest.raises(ValueError):
+        c1 = LdrColour.from_meta(z)
+
+    with pytest.raises(ValueError):
+        o1 = LdrMeta.from_colour(z)

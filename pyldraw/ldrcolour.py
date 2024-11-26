@@ -45,6 +45,7 @@ class LdrColour:
         self.alpha = None
         self.luminance = None
         self.label = None
+        self.material = None
         if colour is not None:
             if isinstance(colour, int):
                 self.code = colour
@@ -268,6 +269,31 @@ class LdrColour:
             if v.lower() == val.lower():
                 return k
         return None
+
+    @staticmethod
+    def from_meta(obj):
+        from .ldrobj import LdrMeta
+
+        """Make a LdrColour instance from a LdrMeta object defined with a parsed LDraw !COLOUR meta"""
+        if not isinstance(obj, LdrMeta):
+            raise ValueError(
+                "Cannot make a LdrColour instance with meta object of type %s"
+                % (type(obj))
+            )
+        c = LdrColour()
+        p = obj.parameters
+        c.code = int(p["code"])
+        c.set_with_hex(p["value"])
+        c.edge = p["edge"]
+        if "alpha" in p:
+            c.alpha = p["alpha"]
+        if "luminance" in p:
+            c.alpha = p["luminance"]
+        c.label = p["name"].replace("_", " ")
+        if "flags" in p:
+            if len(p["flags"]) > 0:
+                c.material = p["flags"][0]
+        return c
 
     @staticmethod
     def CLEAR_MASK():

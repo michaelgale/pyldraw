@@ -311,6 +311,12 @@ class LdrObj:
     def from_str(s):
         from rich import print
 
+        if not isinstance(s, str):
+            raise ValueError(
+                "Cannot make a LdrObj instance. Expecting string, but got object of type %s"
+                % (type(s))
+            )
+
         if s is None:
             return None
         if len(s) < 2:
@@ -557,6 +563,11 @@ class LdrMeta(LdrObj):
     @staticmethod
     def from_str(s):
         """Returns a LdrMeta object by parsing a string representation of LDraw meta line 0"""
+        if not isinstance(s, str):
+            raise ValueError(
+                "Cannot make a LdrMeta instance. Expecting string, but got object of type %s"
+                % (type(s))
+            )
         split_line = s.split()
         line_type = int(split_line[0].lstrip())
         if not line_type == 0:
@@ -577,10 +588,15 @@ class LdrMeta(LdrObj):
     @staticmethod
     def from_colour(colour):
         """Returns a LdrMeta object representing a !COLOUR meta definition of a LdrColour object."""
+        if not isinstance(colour, LdrColour):
+            raise ValueError(
+                "Cannot make a LdrMeta instance. Expecting LdrColour, but got object of type %s"
+                % (type(colour))
+            )
         name = colour.name if colour.name is not None else "Colour_%d" % (colour.code)
         edge = colour.edge if colour.edge is not None else colour.hex_code
         s = []
-        s.append("0 !COLOUR %s" % (name))
+        s.append("0 !COLOUR %s" % (name.replace(" ", "_")))
         s.append("CODE %d" % (colour.code))
         s.append("VALUE %s" % (colour.hex_code))
         s.append("EDGE %s" % (edge))
@@ -588,6 +604,8 @@ class LdrMeta(LdrObj):
             s.append("ALPHA %d" % (colour.alpha))
         if colour.luminance is not None:
             s.append("LUMINANCE %d" % (colour.luminance))
+        if colour.material is not None:
+            s.append(colour.material.upper())
         s = " ".join(s)
         return LdrMeta.from_str(s)
 

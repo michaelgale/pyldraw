@@ -1,4 +1,5 @@
 # LdrObj tests
+import pytest
 
 from rich import print
 from pyldraw import *
@@ -26,6 +27,12 @@ def test_ldrobj_init():
     assert p1.colour.code == 15
     assert p1.colour.hex_code == "#FFFFFF"
     assert p1.pos.almost_same_as((0, 0, 0))
+
+    with pytest.raises(ValueError):
+        obj = LdrObj.from_str([1, 2, 3])
+
+    with pytest.raises(ValueError):
+        obj = LdrMeta.from_str([1, 2, 3])
 
 
 def test_ldrcomment():
