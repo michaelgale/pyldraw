@@ -24,6 +24,7 @@
 # LDraw file parsing, with supporting model and step object classes
 
 import os
+import copy
 from collections import Counter
 
 from rich import print
@@ -47,9 +48,26 @@ class UnwrapCtx:
         self.model_objs = []
         self.aspect = Vector(0, 0, 0)
         self.scale = 1.0
+        self.active_tags = []
         for k, v in kwargs.items():
             if k in self.__dict__:
                 self.__dict__[k] = v
+
+    def tag_objects(self, objs):
+        """captures and or applies tags to objects"""
+        for o in objs:
+            if o.has_start_tag_capture:
+                tag = o.parameters["name"]
+                if tag not in self.active_tags:
+                    self.active_tags.append(tag)
+            elif o.has_end_tag_capture:
+                tag = o.parameters["name"]
+                if tag in self.active_tags:
+                    self.active_tags.remove(tag)
+            else:
+                if len(self.active_tags) > 0:
+                    o.tags = [t for t in self.active_tags]
+        return objs
 
 
 class LdrFile:
@@ -58,7 +76,7 @@ class LdrFile:
     LdrModel objects.  After parsing, a list of building steps is computed
     which represent a recursively unwrapped sequence of building instructions."""
 
-    def __init__(self, filename=None, **kwargs):
+    def __init__(self, filename=None, from_str=None, **kwargs):
         self.filename = filename
         # root model
         self.root = None
@@ -73,30 +91,42 @@ class LdrFile:
             if k in self.__dict__:
                 self.__dict__[k] = v
         if filename is not None:
-            self.parse_file(filename)
+            self.parse_file(filename=filename)
+        elif from_str is not None:
+            self.parse_file(from_str=from_str)
 
     def __repr__(self) -> str:
         return "%s(%s)" % (self.__class__.__name__, self.filename)
 
-    def parse_file(self, filename=None):
+    def parse_file(self, filename=None, from_str=None):
         """Parses an LDraw file into a structured object representation.
         This representation is also unwrapped into a linear sequence of
         building steps."""
         filename = filename if filename is not None else self.filename
         self.models = {}
-        with open(filename, "rt") as fp:
-            models = fp.read().split("0 FILE")
-            root = None
-            if len(models) == 1:
-                root = models[0]
-            else:
-                root = "0 FILE " + models[1]
-                for model in models[2:]:
-                    model_name = model.splitlines()[0].strip()
-                    model_str = "0 FILE " + model
-                    m = LdrModel.from_str(model_str, model_name)
-                    self.models[model_name] = m
-            self.root = LdrModel.from_str(root, name="root")
+        ldrcontent = None
+        if filename is not None:
+            with open(filename, "rt") as fp:
+                ldrcontent = fp.read()
+        elif from_str is not None:
+            ldrcontent = from_str
+        if ldrcontent is None:
+            raise ValueError(
+                "parse_file requires either a filename or string to parse."
+            )
+
+        models = ldrcontent.split("0 FILE")
+        root = None
+        if len(models) == 1:
+            root = models[0]
+        else:
+            root = "0 FILE " + models[1]
+            for model in models[2:]:
+                model_name = model.splitlines()[0].strip()
+                model_str = "0 FILE " + model
+                m = LdrModel.from_str(model_str, model_name)
+                self.models[model_name] = m
+        self.root = LdrModel.from_str(root, name="root")
         self.build_steps, _, _ = self.unwrap_build_steps()
 
     def print_raw(self):
@@ -206,6 +236,7 @@ class LdrFile:
             ctx = UnwrapCtx("root", self.root, aspect=Vector(self.initial_aspect))
             unwrapped = []
         for step in ctx.model.build_steps(self.models):
+            objs = ctx.tag_objects(step.objs)
             if len(step.sub_models) > 0:
                 # this step has one or more references to submodels
                 # recursively unwrap each unique submodel
@@ -220,6 +251,7 @@ class LdrFile:
                         aspect=ctx.aspect,
                         scale=ctx.scale,
                     )
+                    new_ctx.active_tags = [t for t in ctx.active_tags]
                     _, new_idx, new_num = self.unwrap_build_steps(
                         ctx=new_ctx,
                         unwrapped=unwrapped,
@@ -227,7 +259,7 @@ class LdrFile:
                     ctx.idx = new_idx
                     ctx.num = new_num
             build_step = BuildStep(
-                objs=step.objs,
+                objs=objs,
                 dpi=self.dpi,
                 **ctx.__dict__,
             )
@@ -241,4 +273,5 @@ class LdrFile:
             if not build_step.is_virtual:
                 ctx.num += 1
             ctx.idx += 1
+
         return unwrapped, ctx.idx, ctx.num

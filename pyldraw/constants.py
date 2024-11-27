@@ -394,6 +394,12 @@ LDR_META_DICT = {
     "!PY INSERT_FILE": "<filename>",
     "!PY INSERT_BOM": "(COL_WISE | ROW_WISE | SHOW_LEGO_ID | SHOW_TITLE)",
     "!PY NEW_PAGE_NUM": "<number>",
+    "!PY SHOW_HERE_ONLY": "<model>",
+    "!PY TAG BEGIN": "<name>",
+    "!PY TAG END": "<name>",
+    "!PY TAG ROTATE": "<name> <x> <y> <z> (REL | ABS) (THIS_STEP | INDEFINITELY)",
+    "!PY TAG MOVE": "<name> <x> <y> <z> (REL | ABS) (THIS_STEP | INDEFINITELY)",
+    "!PY TAG HIDE": "<name> (THIS_STEP | INDEFINITELY)",
     "!COLOUR": "<name> <CODE code> <VALUE value> <EDGE edge> [LUMINANCE luminance] [ALPHA alpha] (CHROME | PEARLESCENT | METAL | RUBBER)",
 }
 

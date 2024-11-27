@@ -123,6 +123,8 @@ class LdrStep:
             objs = self.objs
         for o in objs:
             if isinstance(o, LdrMeta):
+                if o.has_start_tag_capture:
+                    continue
                 if o.has_start_capture_meta and not is_captured:
                     is_captured = True
                     group["trigger"] = o
@@ -132,7 +134,7 @@ class LdrStep:
                     group = {}
                     is_captured = False
             elif is_captured:
-                if isinstance(o, LdrPart):
+                if o.is_drawable:
                     group["objs"].append(o)
         for d in delimited:
             if d["trigger"].is_arrow_capture:

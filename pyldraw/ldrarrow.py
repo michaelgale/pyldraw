@@ -40,7 +40,6 @@ class LdrArrow:
         self.tip_taper = 3
         self.aspect = None
         self.tilt = 0
-        self.fixed_length = None
         self.ratio = None
         self.dash = None
         for k, v in kwargs.items():
@@ -78,8 +77,6 @@ class LdrArrow:
     @property
     def length(self):
         """Length of the arrow from tip to tail"""
-        if self.fixed_length is not None:
-            return self.fixed_length
         return abs(self.tip_pos - self.tail_pos)
 
     @property
@@ -99,14 +96,6 @@ class LdrArrow:
     def tail(self):
         """Tail position with the tip normalized to (0, 0, 0)"""
         return self.tail_pos - self.tip_pos
-
-    def set_from_offset_bound_box(self, bb, offset):
-        """Sets the arrow tip and tail position based on a bounding box region
-        and offset.  Normally, the arrow tail is coincident with the bounding box
-        centre and the tip is set at the offset from the tail."""
-        tp = Vector(bb.centre)
-        self.tail_pos = tp
-        self.tip_pos = self.tail_pos - Vector(offset)
 
     def arrow_objs(self):
         """Returns a list of LdrObj shapes which render this arrow."""

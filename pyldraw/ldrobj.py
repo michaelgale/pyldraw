@@ -33,6 +33,7 @@ from .helpers import (
     rich_vector_str,
     strip_part_ext,
     MetaValueParser,
+    listify,
 )
 from pyldraw import *
 
@@ -49,6 +50,7 @@ class LdrObj:
         self._pts = [Vector(0, 0, 0)] * 4
         self.raw = None
         self.path = None
+        self.tags = None
         self._sha1_hash = None
         for k, v in kwargs.items():
             if k == "colour":
@@ -68,6 +70,23 @@ class LdrObj:
 
     def __repr__(self) -> str:
         return "%s(%s: %s)" % (self.__class__.__name__, self.path, str(self))
+
+    def verbose(self):
+        s = []
+        s.append("%s: " % (self.path))
+        if len(str(self)) > 60:
+            s.append(str(self)[:40])
+            s.append(" ... ")
+            last = len(str(self)) - 40
+            last = min(last, 16)
+            s.append(str(self)[-last:])
+        else:
+            s.append(str(self))
+        if self.tags is not None:
+            s.append(" (")
+            s.append(" ".join(["%s" % (t) for t in self.tags]))
+            s.append(")")
+        return "".join(s)
 
     def copy(self):
         if isinstance(self, LdrComment):
@@ -95,6 +114,20 @@ class LdrObj:
             hk.update(bytes(str(self), encoding="utf8"))
             self._sha1_hash = hk.hexdigest()
         return self._sha1_hash
+
+    @property
+    def has_start_tag_capture(self):
+        if isinstance(self, LdrMeta):
+            if self.command.upper() == "!PY TAG BEGIN":
+                return True
+        return False
+
+    @property
+    def has_end_tag_capture(self):
+        if isinstance(self, LdrMeta):
+            if self.command.upper() == "!PY TAG END":
+                return True
+        return False
 
     @property
     def has_start_capture_meta(self):
@@ -174,6 +207,12 @@ class LdrObj:
         if self.command in DELIMITER_META:
             return True
         return False
+
+    def has_tag(self, tags):
+        if self.tags is None:
+            return False
+        tags = listify(tags)
+        return all(t in self.tags for t in tags)
 
     def renamed(self, name):
         if not isinstance(self, LdrPart):
@@ -313,8 +352,6 @@ class LdrObj:
 
     @staticmethod
     def from_str(s):
-        from rich import print
-
         if not isinstance(s, str):
             raise ValueError(
                 "Cannot make a LdrObj instance. Expecting string, but got object of type %s"

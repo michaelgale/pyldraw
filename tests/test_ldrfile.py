@@ -82,6 +82,41 @@ TEST_MODEL3 = """
 0 NOFILE
 """
 
+TEST_MODEL4 = """
+0 FILE submodel1.ldr
+0 untitled model
+0 Name: submodel1.ldr
+0 Author: Michael Gale
+1 28 0 0 0 1 0 0 0 1 0 -0 0 1 3031.dat
+1 0 0 -8 0 1 0 0 0 1 0 -0 0 1 3068b.dat
+0 STEP
+0 !PY TAG BEGIN TEST1
+1 70 -30 -8 -30 1 0 0 0 1 0 -0 0 1 2420.dat
+1 70 -30 -8 30 -0 0 1 0 1 0 -1 0 -0 2420.dat
+1 70 30 -8 30 -1 0 0 0 1 0 -0 0 -1 2420.dat
+1 70 30 -8 -30 0 0 -1 0 1 0 1 0 0 2420.dat
+0 STEP
+0 !PY TAG BEGIN TEST2
+1 14 0 -32 30 -1 0 0 0 1 0 -0 0 -1 3010.dat
+0 !PY TAG END TEST1
+1 40 0 -50 0 1 0 0 0 1 0 -0 0 1 submodel3.ldr
+0 STEP
+1 15 40 -32 30 -1 0 0 0 1 0 -0 0 -1 3023.dat
+0 !PY TAG END TEST2
+1 15 -40 -32 30 -1 0 0 0 1 0 -0 0 -1 3023.dat
+0 STEP
+0 NOFILE
+0 FILE submodel3.ldr
+0 untitled model
+0 Name: submodel3.ldr
+0 Author: Michael Gale
+1 15 0 0 0 1 0 0 0 1 0 -0 0 1 6141.dat
+0 STEP
+1 40 0 -8 0 1 0 0 0 1 0 -0 0 1 98138.dat
+0 STEP
+0 NOFILE
+"""
+
 
 def test_ldrmodel():
     m1 = LdrModel.from_str(TEST_MODEL1)
@@ -188,7 +223,17 @@ def test_ldrfile_ext():
     #     print(o, o.path)
 
 
-# for o in step.iter_meta_objs():
-#     print(o)
-# for p in step.pli_parts:
-#     print(p)
+def test_ldrfile_tags():
+    f1 = LdrFile(from_str=TEST_MODEL4, initial_aspect=(35, 45, 0))
+    assert len(f1.models) == 1
+    assert len(f1.build_steps) == 6
+    assert f1.piece_count == 11
+    assert f1.element_count == 7
+    t1 = sum([1 if o.has_tag("TEST1") else 0 for o in f1.model_parts_at_step(-1)])
+    t2 = sum([1 if o.has_tag("TEST2") else 0 for o in f1.model_parts_at_step(-1)])
+    t3 = sum(
+        [1 if o.has_tag(["TEST2", "TEST1"]) else 0 for o in f1.model_parts_at_step(-1)]
+    )
+    assert t1 == 5
+    assert t2 == 4
+    assert t3 == 1
