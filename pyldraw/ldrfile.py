@@ -143,13 +143,15 @@ class LdrFile:
 
     @property
     def piece_count(self):
-        return len(self.model_parts_at_step(-1))
+        objs = filter_objs(self.model_parts_at_step(-1), is_part=True)
+        return len(objs)
 
     @property
     def element_count(self):
         c = Counter()
         for o in self.model_parts_at_step(-1):
-            c.update([o.part_key])
+            if isinstance(o, LdrPart):
+                c.update([o.part_key])
         return len(c)
 
     @property

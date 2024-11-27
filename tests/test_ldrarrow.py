@@ -67,10 +67,10 @@ def test_render():
     ldv.render_from_parts(_ldv_objs(a1), "arrow-yn.png")
     assert os.path.isfile(IMG_PATH + "arrow-yn.png")
 
-    a1 = LdrArrow(colour=802, tail_pos=(0, -ARROW_LEN, 0), tilt=55, fixed_length=30)
+    a1 = LdrArrow(colour=802, tail_pos=(0, -ARROW_LEN, 0), tilt=55, fixed_length=100)
     a1.aspect = LDV_ASPECT
     a1.border_colour = LdrColour(15)
-    assert a1.length == 30
+    assert a1.length == 100
     assert a1.tilt == 55
     ldv.render_from_parts(_ldv_objs(a1), "arrow-yn55.png")
     assert os.path.isfile(IMG_PATH + "arrow-yn55.png")
@@ -85,6 +85,7 @@ def test_render():
 
     a1 = LdrArrow(colour=802, tail_pos=(0, -ARROW_LEN, 0), ratio=0.25)
     a1.aspect = LDV_ASPECT
+    assert a1.ratio == 0.25
     a1.border_colour = LdrColour(15)
     ldv.render_from_parts(_ldv_objs(a1), "arrow-ynr.png")
     assert os.path.isfile(IMG_PATH + "arrow-ynr.png")
@@ -100,13 +101,29 @@ def test_render():
     ldv.render_from_parts(_ldv_objs(a1), "arrow-xn.png")
     assert os.path.isfile(IMG_PATH + "arrow-xn.png")
 
+    a1 = LdrArrow(tail_pos=(-1.25 * ARROW_LEN, 0, 0))
+    a1.aspect = LDV_ASPECT
+    a1.dash_style()
+    ldv.render_from_parts(_ldv_objs(a1), "arrow-dash1.png")
+    assert os.path.isfile(IMG_PATH + "arrow-dash1.png")
+    a1 = LdrArrow(tail_pos=(-1.5 * ARROW_LEN, 0, 0))
+    a1.aspect = LDV_ASPECT
+    a1.dash_style()
+    ldv.render_from_parts(_ldv_objs(a1), "arrow-dash2.png")
+    assert os.path.isfile(IMG_PATH + "arrow-dash2.png")
+    a1 = LdrArrow(tail_pos=(-1.75 * ARROW_LEN, 0, 0))
+    a1.aspect = LDV_ASPECT
+    a1.dash_style()
+    ldv.render_from_parts(_ldv_objs(a1), "arrow-dash3.png")
+    assert os.path.isfile(IMG_PATH + "arrow-dash3.png")
+
     a1 = LdrArrow(colour=804, tail_pos=(ARROW_LEN, 0, 0))
     a1.aspect = LDV_ASPECT
     ldv.render_from_parts(_ldv_objs(a1), "arrow-xp.png")
     assert os.path.isfile(IMG_PATH + "arrow-xp.png")
 
     a1 = LdrArrow(
-        colour=804, tail_pos=(ARROW_LEN, 0, 0), tilt=30, ratio=0.5, fixed_length=50
+        colour=804, tail_pos=(ARROW_LEN, 0, 0), tilt=-45, ratio=0.5, fixed_length=50
     )
     a1.aspect = LDV_ASPECT
     ldv.render_from_parts(_ldv_objs(a1), "arrow-xprft.png")

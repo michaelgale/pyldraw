@@ -42,6 +42,7 @@ class LdrArrow:
         self.tilt = 0
         self.fixed_length = None
         self.ratio = None
+        self.dash = None
         for k, v in kwargs.items():
             if k in self.__dict__:
                 if "pos" in k:
@@ -63,6 +64,16 @@ class LdrArrow:
         s.append("dir: (%s) " % (vector_str(self.direction)))
         s.append("norm: (%s) " % (vector_str(self.normal)))
         return "".join(s)
+
+    def dash_style(self):
+        """Apply a preset style for wide dashed arrows."""
+        self.colour = LdrColour(18)
+        self.border_colour = LdrColour(0)
+        self.tip_length = 15
+        self.tip_width = 36
+        self.tail_width = 20
+        self.tip_taper = 0
+        self.dash = [10, 5]
 
     @property
     def length(self):
@@ -88,22 +99,6 @@ class LdrArrow:
     def tail(self):
         """Tail position with the tip normalized to (0, 0, 0)"""
         return self.tail_pos - self.tip_pos
-
-    @property
-    def dir_str(self):
-        if self.direction.almost_same_as((1, 0, 0)):
-            return "+x"
-        if self.direction.almost_same_as((-1, 0, 0)):
-            return "-x"
-        if self.direction.almost_same_as((0, 1, 0)):
-            return "+y"
-        if self.direction.almost_same_as((0, -1, 0)):
-            return "-y"
-        if self.direction.almost_same_as((0, 0, 1)):
-            return "+z"
-        if self.direction.almost_same_as((0, 0, -1)):
-            return "-z"
-        return ""
 
     def set_from_offset_bound_box(self, bb, offset):
         """Sets the arrow tip and tail position based on a bounding box region
@@ -132,13 +127,38 @@ class LdrArrow:
         right_tip.point3 = p3 + self.tip_pos
 
         tl = self.length - self.tip_length + self.tip_taper
-        tail = LdrQuad.from_size(tl * self.direction, self.tail_width * n)
-        tail.colour = LdrColour(self.colour)
         ts = tl / 2 + self.tip_length - self.tip_taper
-        tail.translate(Vector(ts * self.direction))
-        tail.translate(self.tip_pos)
+        tails = []
+        if self.dash is None:
+            tail = LdrQuad.from_size(tl * self.direction, self.tail_width * n)
+            tail.colour = LdrColour(self.colour)
+            tail.translate(Vector(ts * self.direction))
+            tail.translate(self.tip_pos)
+            tails.append(tail)
+        else:
+            sl = sum(self.dash)
+            segments = round(tl / sl)
+            for i in range(segments):
+                tail = LdrQuad.from_size(
+                    self.dash[0] * self.direction, self.tail_width * n
+                )
+                tail.colour = LdrColour(self.colour)
+                loc = self.tip_length + self.dash[1] + self.dash[0] / 2 + (i * sl)
+                tail.translate(Vector(loc * self.direction))
+                tail.translate(self.tip_pos)
+                tails.append(tail)
+                if self.border_colour is not None:
+                    for i in range(4):
+                        a, b = i % 4, (i + 1) % 4
+                        line = LdrLine(
+                            colour=self.border_colour.code,
+                            point1=tail._pts[a],
+                            point2=tail._pts[b],
+                        )
+                        tails.append(line)
 
-        objs = [left_tip, right_tip, tail]
+        objs = [left_tip, right_tip]
+        objs.extend(tails)
 
         if self.border_colour is not None:
             ts = self.tip_taper / (self.tip_width / 2)
@@ -151,16 +171,39 @@ class LdrArrow:
             l2 = LdrLine(colour=bc, point1=self.tip_pos, point2=right_tip.point2)
             l3 = LdrLine(colour=bc, point1=left_tip.point2, point2=pt2l)
             l4 = LdrLine(colour=bc, point1=right_tip.point2, point2=pt2r)
-            l5 = LdrLine(colour=bc, point1=pt2l, point2=tail.point2)
-            l6 = LdrLine(colour=bc, point1=pt2r, point2=tail.point3)
-            l7 = LdrLine(colour=bc, point1=tail.point2, point2=tail.point3)
-            objs.extend([l1, l2, l3, l4, l5, l6, l7])
+            if self.dash is None:
+                l5 = LdrLine(colour=bc, point1=pt2l, point2=tails[0].point2)
+                l6 = LdrLine(colour=bc, point1=pt2r, point2=tails[0].point3)
+                l7 = LdrLine(colour=bc, point1=tails[0].point2, point2=tails[0].point3)
+                objs.extend([l1, l2, l3, l4, l5, l6, l7])
+            else:
+                l5 = LdrLine(colour=bc, point1=pt2l, point2=pt2r)
+                objs.extend([l1, l2, l3, l4, l5])
 
         if self.ratio is not None:
+            # apply optional arrow shift proportional to length
             offset = (self.ratio * self.length) * self.direction
             objs = [o.translated(offset) for o in objs]
 
+        if "x" in self.direction.dir_str:
+            # prefer arrow heads to lie "flat" with respect to the x-z axis
+            angle = 90 * self.direction
+            objs = [o.translated(-1.0 * self.tip_pos) for o in objs]
+            objs = [o.rotated_by(angle) for o in objs]
+            objs = [o.translated(self.tip_pos) for o in objs]
+
+        if "y" in self.direction.dir_str and self.aspect is not None:
+            # prefer arrows to face the "camera" if standing vertical
+            if "+" in self.direction.dir_str:
+                angle = (90 - self.aspect[1]) * self.direction
+            else:
+                angle = -(90 - self.aspect[1]) * self.direction
+            objs = [o.translated(-1.0 * self.tip_pos) for o in objs]
+            objs = [o.rotated_by(angle) for o in objs]
+            objs = [o.translated(self.tip_pos) for o in objs]
+
         if abs(self.tilt) > 0:
+            # apply optional rotation about arrow's "roll" axis
             angle = self.tilt * self.direction
             objs = [o.translated(-1.0 * self.tip_pos) for o in objs]
             objs = [o.rotated_by(angle) for o in objs]
@@ -170,7 +213,7 @@ class LdrArrow:
 
     @staticmethod
     def offset_list_from_meta(meta):
-        """Returns a list arrow offset vectors specified in the !PY ARROW meta."""
+        """Returns a list of arrow offset vectors specified in the !PY ARROW meta."""
         p = meta.parameters
         offsets = [Vector([float(e) for e in (p["x"], p["y"], p["z"])])]
         if "extra" in p:
@@ -188,7 +231,7 @@ class LdrArrow:
         return Vector([0 if len(t[i]) > 1 else t[i][0] for i in range(3)])
 
     @staticmethod
-    def objs_from_meta(meta, aspect=None, boundbox=None):
+    def objs_from_meta(meta, aspect=None, origin=None):
         """Returns arrow drawing primitives based on the arrows specified in the !PY ARROW meta."""
         p = meta.parameters
         offsets = LdrArrow.offset_list_from_meta(meta)
@@ -201,16 +244,14 @@ class LdrArrow:
                 a.colour = LdrColour(int(p["colour"]))
             if "tilt" in p:
                 a.tilt = float(p["tilt"])
-            if "length" in p:
-                a.fixed_length = float(p["length"])
-            if boundbox is not None:
-                a.tail_pos = Vector(boundbox.centre)
-            else:
-                a.tail_pos = Vector(0, 0, 0)
-            v = a.tail_pos
+            v = origin if origin is not None else Vector(0, 0, 0)
             a.tail_pos = Vector([v[i] if not t[i] else v[i] - o[i] for i in range(3)])
             v = a.tail_pos
             a.tip_pos = Vector([v[i] if t[i] else v[i] - o[i] for i in range(3)])
+            if "length" in p:
+                # apply a fixed length offset rather than mean offset
+                fl = (a.length - float(p["length"])) * a.direction
+                a.tip_pos = a.tip_pos + fl
             arrows.append(a)
         objs = []
         for a in arrows:

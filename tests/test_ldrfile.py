@@ -125,7 +125,7 @@ def test_ldrfile():
     assert len(f1.build_steps) == 17
     assert f1.piece_count == 27
     assert f1.element_count == 14
-    assert f1.build_steps[-1].sha1_hash == "5af110bece15f97c8d2276975f4f04b3c068057a"
+    assert f1.build_steps[-1].sha1_hash == "c664f735f218aa5473e4034216ba0c204d0eb4c1"
     assert f1.colour_count == 10
     assert len(f1.objs_at_step(5)) == 2
     assert len(f1.step_parts_at_step(3)) == 4

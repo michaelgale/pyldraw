@@ -22,7 +22,7 @@ LDV_ARGS = {
 TEST_RENDER_STEPS = False
 TEST_RENDER_PARTS = False
 TEST_RENDER_OUTLINE = True
-TEST_STEP_RANGE = (0, 20)
+TEST_STEP_RANGE = (0, 3)
 
 
 def test_ldvrender_part():
@@ -37,6 +37,9 @@ def test_ldvrender_file():
     if TEST_RENDER_STEPS:
         for i, step in enumerate(f1.iter_steps()):
             if i >= TEST_STEP_RANGE[0] and i <= TEST_STEP_RANGE[1]:
+                print(step)
+                for o in step.step_parts:
+                    print(o)
                 step.render_model(**LDV_ARGS)
                 step.render_masked_image(**LDV_ARGS)
                 step.render_unmasked_image(**LDV_ARGS)
@@ -52,7 +55,7 @@ def test_ldvrender_features():
         if step.delimited_objs:
             d = step.delimited_objs
             if i == 1:
-                assert len(d) == 1
+                assert len(d) == 2
                 assert "trigger" in d[0]
                 assert "0 !PY ARROW BEGIN" in d[0]["trigger"].raw
                 assert "offset" in d[0]

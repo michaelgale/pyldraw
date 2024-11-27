@@ -392,6 +392,23 @@ class Vector(object):
             matched_axis += 1
         return matched_axis
 
+    @property
+    def dir_str(self):
+        """Returns a string representing if this vector is aligned with any of the x, y, z axes, blank otherwise."""
+        if self.norm().almost_same_as((1, 0, 0)):
+            return "+x"
+        if self.norm().almost_same_as((-1, 0, 0)):
+            return "-x"
+        if self.norm().almost_same_as((0, 1, 0)):
+            return "+y"
+        if self.norm().almost_same_as((0, -1, 0)):
+            return "-y"
+        if self.norm().almost_same_as((0, 0, 1)):
+            return "+z"
+        if self.norm().almost_same_as((0, 0, -1)):
+            return "-z"
+        return ""
+
 
 def safe_vector(v):
     """returns a Vector object by automatically inferring the input argument v"""
@@ -468,6 +485,8 @@ class BoundBox:
         elif isinstance(other, (tuple, list)):
             if len(other) == 3 and isinstance(other[0], Number):
                 pts = [Vector(other)]
+            elif len(other) == 0:
+                return self
             else:
                 if isinstance(other[0], (tuple, list, Vector)):
                     pts = [Vector(v) for v in other]

@@ -364,9 +364,9 @@ class BuildStep(LdrStep):
         """Ensures objects that captured between delimiter meta lines are modified
         as applicable, e.g. translated, hidden, etc."""
         if only_for_step:
-            objs = filter_objs(self.step_objs, is_part=True)
+            objs = filter_objs(self.step_objs, is_drawable=True)
         else:
-            objs = filter_objs(self.model_objs, is_part=True)
+            objs = filter_objs(self.model_objs, is_drawable=True)
         mod_objs = []
 
         for d in self.delimited_objs:
@@ -382,19 +382,18 @@ class BuildStep(LdrStep):
                         Vector(d["offset"])
                         * Matrix.euler_to_rot_matrix(self.aspect).transpose()
                     )
-                    mod_objs.extend([o.translated(offset) for o in del_objs])
+                    sh_objs = [o.translated(offset) for o in del_objs]
+                    mod_objs.extend(self.arrows_for_offset(d["trigger"], sh_objs))
+                    mod_objs.extend(sh_objs)
                 objs = obj_difference(objs, del_objs)
-            if d["trigger"].is_arrow_capture:
-                mod_objs.extend(self.arrows_for_offset(d, mod_objs))
             if d["trigger"].is_hide_part_capture:
                 objs = obj_difference(objs, del_objs)
         return obj_union(objs, mod_objs)
 
-    def arrows_for_offset(self, d, objs):
+    def arrows_for_offset(self, meta, objs):
         if len(objs) > 0:
-            arrows = LdrArrow.objs_from_meta(
-                d["trigger"], aspect=self.aspect, boundbox=self.bound_box(objs)
-            )
+            bb = self.bound_box(objs)
+            arrows = LdrArrow.objs_from_meta(meta, aspect=self.aspect, origin=bb.centre)
             return [o.rotated_by(self.aspect) for o in arrows]
         else:
             return []
@@ -432,9 +431,13 @@ class BuildStep(LdrStep):
         rot = Matrix.euler_to_rot_matrix(Vector(self.aspect))
         bb = BoundBox()
         for o in parts:
-            m = LdrModel.from_part(o.name)
-            pos = Vector(o.pos) * rot
-            bb = bb.union(m.bound_box.translated(pos))
+            if isinstance(o, LdrPart):
+                m = LdrModel.from_part(o.name)
+                pos = Vector(o.pos) * rot
+                bb = bb.union(m.bound_box.translated(pos))
+            else:
+                pts = [Vector(pt) * rot for pt in o.points]
+                bb = bb.union(BoundBox.from_pts(pts))
         return bb
 
     @property

@@ -125,6 +125,10 @@ class LdrObj:
         return isinstance(self, (LdrLine, LdrTriangle, LdrQuad))
 
     @property
+    def is_drawable(self):
+        return isinstance(self, (LdrPart, LdrLine, LdrTriangle, LdrQuad))
+
+    @property
     def model_part_name(self):
         if not isinstance(self, LdrPart):
             return None
@@ -236,7 +240,7 @@ class LdrObj:
             return [pt for pt in self._pts[:3]]
         elif isinstance(self, LdrQuad):
             return [pt for pt in self._pts[:4]]
-        return [pt for pt in self._pts]
+        return []
 
     @property
     def bound_box(self):

@@ -39,6 +39,7 @@ def filter_objs(
     is_part=None,
     is_model=None,
     is_primitive=None,
+    is_drawable=None,
     part_key=None,
     name=None,
     meta_key=None,
@@ -70,6 +71,8 @@ def filter_objs(
         ]
     if is_primitive is not None:
         x = [xo and (o.is_primitive == is_primitive) for xo, o in zip(x, a)]
+    if is_drawable is not None:
+        x = [xo and (o.is_drawable == is_drawable) for xo, o in zip(x, a)]
     if part_key is not None:
         x = [xo and o.part_key == part_key for xo, o in zip(x, a)]
     if name is not None:
