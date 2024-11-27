@@ -168,7 +168,7 @@ class LdrFile:
     def iter_build_steps(self):
         """Iterates through unwrapped building steps yielding a BuildStep object."""
         for step in self.build_steps:
-            if len(step.step_parts) > 0:
+            if not step.is_virtual:
                 yield step
 
     def iter_steps(self):

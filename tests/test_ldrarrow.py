@@ -32,12 +32,30 @@ def test_arrow_init():
 
 def _ldv_objs(arrow):
     objs = []
-    p = LdrPart(name="3001.dat", colour=3, pos=(0, 1, 0))
+    p = LdrPart(name="3023.dat", colour=3, pos=(0, 1, 0))
     p = p.rotated_by(LDV_ASPECT)
     objs.extend([p])
     objs.extend([o.rotated_by(LDV_ASPECT) for o in AXIS_LINES])
     objs.extend([o.rotated_by(LDV_ASPECT) for o in arrow.arrow_objs()])
     return objs
+
+
+def test_meta():
+    s = "0 !PY ARROW BEGIN COLOUR 1 TILT -30 LENGTH 80 RATIO 0.5 -30 -100 0 30 -100 0"
+    m = LdrMeta.from_str(s)
+    a0 = LdrArrow.objs_from_meta(m, aspect=LDV_ASPECT)
+    ldv = LDViewRender(**LDV_ARGS)
+    ldv.render_from_parts(a0, "arrow-meta.png")
+
+    s = "0 !PY ARROW BEGIN COLOUR 1 -30 -100 0 30 -100 0"
+    o = LdrArrow.mean_offset_from_meta(LdrMeta.from_str(s))
+    assert o.almost_same_as((0, -100, 0))
+
+    s = "0 !PY ARROW BEGIN COLOUR 1 -50 0 10  -50 0 -10  -50 0 20  -50 0 -20"
+    l0 = LdrArrow.offset_list_from_meta(LdrMeta.from_str(s))
+    assert len(l0) == 4
+    o = LdrArrow.mean_offset_from_meta(LdrMeta.from_str(s))
+    assert o.almost_same_as((-50, 0, 0))
 
 
 def test_render():
@@ -48,6 +66,28 @@ def test_render():
     a1.border_colour = LdrColour(15)
     ldv.render_from_parts(_ldv_objs(a1), "arrow-yn.png")
     assert os.path.isfile(IMG_PATH + "arrow-yn.png")
+
+    a1 = LdrArrow(colour=802, tail_pos=(0, -ARROW_LEN, 0), tilt=55, fixed_length=30)
+    a1.aspect = LDV_ASPECT
+    a1.border_colour = LdrColour(15)
+    assert a1.length == 30
+    assert a1.tilt == 55
+    ldv.render_from_parts(_ldv_objs(a1), "arrow-yn55.png")
+    assert os.path.isfile(IMG_PATH + "arrow-yn55.png")
+
+    a1 = LdrArrow(colour=802, tail_pos=(0, -ARROW_LEN, 0), tilt=-55, fixed_length=100)
+    a1.aspect = LDV_ASPECT
+    a1.border_colour = LdrColour(15)
+    assert a1.tilt == -55
+    assert a1.length == 100
+    ldv.render_from_parts(_ldv_objs(a1), "arrow-yn-55.png")
+    assert os.path.isfile(IMG_PATH + "arrow-yn-55.png")
+
+    a1 = LdrArrow(colour=802, tail_pos=(0, -ARROW_LEN, 0), ratio=0.25)
+    a1.aspect = LDV_ASPECT
+    a1.border_colour = LdrColour(15)
+    ldv.render_from_parts(_ldv_objs(a1), "arrow-ynr.png")
+    assert os.path.isfile(IMG_PATH + "arrow-ynr.png")
 
     a1 = LdrArrow(colour=802, tail_pos=(0, ARROW_LEN, 0))
     a1.aspect = LDV_ASPECT
@@ -64,6 +104,23 @@ def test_render():
     a1.aspect = LDV_ASPECT
     ldv.render_from_parts(_ldv_objs(a1), "arrow-xp.png")
     assert os.path.isfile(IMG_PATH + "arrow-xp.png")
+
+    a1 = LdrArrow(
+        colour=804, tail_pos=(ARROW_LEN, 0, 0), tilt=30, ratio=0.5, fixed_length=50
+    )
+    a1.aspect = LDV_ASPECT
+    ldv.render_from_parts(_ldv_objs(a1), "arrow-xprft.png")
+    assert os.path.isfile(IMG_PATH + "arrow-xprft.png")
+
+    a1 = LdrArrow(colour=804, tail_pos=(ARROW_LEN, 0, 0), ratio=0.5, fixed_length=50)
+    a1.aspect = LDV_ASPECT
+    ldv.render_from_parts(_ldv_objs(a1), "arrow-xprf.png")
+    assert os.path.isfile(IMG_PATH + "arrow-xprf.png")
+
+    a1 = LdrArrow(colour=804, tail_pos=(ARROW_LEN, 0, 0), ratio=0.5)
+    a1.aspect = LDV_ASPECT
+    ldv.render_from_parts(_ldv_objs(a1), "arrow-xpr.png")
+    assert os.path.isfile(IMG_PATH + "arrow-xpr.png")
 
     a1 = LdrArrow(colour=801, tail_pos=(0, 0, -ARROW_LEN))
     a1.aspect = LDV_ASPECT

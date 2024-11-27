@@ -30,7 +30,7 @@ from pyldraw import *
 
 class LdrArrow:
     def __init__(self, **kwargs):
-        self.colour = LdrColour()
+        self.colour = LdrColour(ARROW_RED_COLOUR)
         self.border_colour = None
         self.tip_pos = Vector(0, 0, 0)
         self.tail_pos = Vector(0, 0, 0)
@@ -39,6 +39,9 @@ class LdrArrow:
         self.tail_width = 4
         self.tip_taper = 3
         self.aspect = None
+        self.tilt = 0
+        self.fixed_length = None
+        self.ratio = None
         for k, v in kwargs.items():
             if k in self.__dict__:
                 if "pos" in k:
@@ -64,6 +67,8 @@ class LdrArrow:
     @property
     def length(self):
         """Length of the arrow from tip to tail"""
+        if self.fixed_length is not None:
+            return self.fixed_length
         return abs(self.tip_pos - self.tail_pos)
 
     @property
@@ -111,14 +116,6 @@ class LdrArrow:
     def arrow_objs(self):
         """Returns a list of LdrObj shapes which render this arrow."""
         n = self.normal
-        if self.aspect is not None:
-            a = Vector(self.aspect)
-            if "y" in self.dir_str:
-                if a.y < 45 and a.y > -45:
-                    n = Vector(1, 0, 0)
-                elif a.y > 135 or a.y < -135:
-                    n = Vector(1, 0, 0)
-
         tw2 = self.tip_width / 2
         p2l = self.tip_length * self.direction - tw2 * n
         p2r = self.tip_length * self.direction + tw2 * n
@@ -158,4 +155,64 @@ class LdrArrow:
             l6 = LdrLine(colour=bc, point1=pt2r, point2=tail.point3)
             l7 = LdrLine(colour=bc, point1=tail.point2, point2=tail.point3)
             objs.extend([l1, l2, l3, l4, l5, l6, l7])
+
+        if self.ratio is not None:
+            offset = (self.ratio * self.length) * self.direction
+            objs = [o.translated(offset) for o in objs]
+
+        if abs(self.tilt) > 0:
+            angle = self.tilt * self.direction
+            objs = [o.translated(-1.0 * self.tip_pos) for o in objs]
+            objs = [o.rotated_by(angle) for o in objs]
+            objs = [o.translated(self.tip_pos) for o in objs]
+
+        return objs
+
+    @staticmethod
+    def offset_list_from_meta(meta):
+        """Returns a list arrow offset vectors specified in the !PY ARROW meta."""
+        p = meta.parameters
+        offsets = [Vector([float(e) for e in (p["x"], p["y"], p["z"])])]
+        if "extra" in p:
+            v = [float(e) for e in p["extra"]]
+            extra_arrows = int(len(v) / 3)
+            for _, i in enumerate(range(extra_arrows)):
+                offsets.append(Vector(v[(i * 3) : (i * 3) + 3]))
+        return offsets
+
+    @staticmethod
+    def mean_offset_from_meta(meta):
+        """Computes the mean offset from a list of arrow offset vectors specified in the !PY ARROW meta"""
+        offsets = LdrArrow.offset_list_from_meta(meta)
+        t = [list(set([v[i] for v in offsets])) for i in range(3)]
+        return Vector([0 if len(t[i]) > 1 else t[i][0] for i in range(3)])
+
+    @staticmethod
+    def objs_from_meta(meta, aspect=None, boundbox=None):
+        """Returns arrow drawing primitives based on the arrows specified in the !PY ARROW meta."""
+        p = meta.parameters
+        offsets = LdrArrow.offset_list_from_meta(meta)
+        t = [list(set([v[i] for v in offsets])) for i in range(3)]
+        t = [1 if len(t[i]) > 1 else 0 for i in range(3)]
+        arrows = []
+        for o in offsets:
+            a = LdrArrow(aspect=aspect)
+            if "colour" in p:
+                a.colour = LdrColour(int(p["colour"]))
+            if "tilt" in p:
+                a.tilt = float(p["tilt"])
+            if "length" in p:
+                a.fixed_length = float(p["length"])
+            if boundbox is not None:
+                a.tail_pos = Vector(boundbox.centre)
+            else:
+                a.tail_pos = Vector(0, 0, 0)
+            v = a.tail_pos
+            a.tail_pos = Vector([v[i] if not t[i] else v[i] - o[i] for i in range(3)])
+            v = a.tail_pos
+            a.tip_pos = Vector([v[i] if t[i] else v[i] - o[i] for i in range(3)])
+            arrows.append(a)
+        objs = []
+        for a in arrows:
+            objs.extend([o.new_path("arrow") for o in a.arrow_objs()])
         return objs

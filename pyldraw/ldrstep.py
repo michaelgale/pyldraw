@@ -137,9 +137,7 @@ class LdrStep:
         for d in delimited:
             if d["trigger"].is_arrow_capture:
                 o = d["trigger"]
-                vals = [o.parameters["x"], o.parameters["y"], o.parameters["z"]]
-                vals = [quantize(v) for v in vals]
-                d["offset"] = safe_vector(vals)
+                d["offset"] = LdrArrow.mean_offset_from_meta(o)
         self._delimited = delimited
         return self._delimited
 
@@ -261,6 +259,8 @@ class BuildStep(LdrStep):
         # bounding boxes for overall model and parts added this step
         self._model_bound_box = None
         self._step_bound_box = None
+        # default path for images
+        self._default_img_path = None
 
     def __repr__(self) -> str:
         return "%s(%d step objects)" % (self.__class__.__name__, len(self.step_objs))
@@ -377,25 +377,24 @@ class BuildStep(LdrStep):
                     del_objs = filter_objs(objs, path=obj.path)
                 else:
                     del_objs = filter_objs(objs, sha1_hash=obj.sha1_hash)
-                if "offset" in d:
+                if d["trigger"].is_arrow_capture:
                     offset = (
                         Vector(d["offset"])
                         * Matrix.euler_to_rot_matrix(self.aspect).transpose()
                     )
                     mod_objs.extend([o.translated(offset) for o in del_objs])
                 objs = obj_difference(objs, del_objs)
-            if "offset" in d:
-                mod_objs.extend(self.arrows_for_offset(mod_objs, d["offset"]))
+            if d["trigger"].is_arrow_capture:
+                mod_objs.extend(self.arrows_for_offset(d, mod_objs))
             if d["trigger"].is_hide_part_capture:
                 objs = obj_difference(objs, del_objs)
         return obj_union(objs, mod_objs)
 
-    def arrows_for_offset(self, objs, offset):
+    def arrows_for_offset(self, d, objs):
         if len(objs) > 0:
-            bb = self.bound_box(objs)
-            arrow = LdrArrow(colour=804, aspect=self.aspect)
-            arrow.set_from_offset_bound_box(bb, offset)
-            arrows = [o.new_path("arrow") for o in arrow.arrow_objs()]
+            arrows = LdrArrow.objs_from_meta(
+                d["trigger"], aspect=self.aspect, boundbox=self.bound_box(objs)
+            )
             return [o.rotated_by(self.aspect) for o in arrows]
         else:
             return []
@@ -452,19 +451,33 @@ class BuildStep(LdrStep):
 
     def render_model(self, **kwargs):
         """Renders an image of the model for this step."""
-        path = kwargs["output_path"]
+        path = self._get_path_from_dict(kwargs)
         fn = normalize_filename(self.model_filename(), path)
-        if "dpi" in kwargs:
-            kwargs["dpi"] = self.dpi
         ldv = LDViewRender(**kwargs)
         ldv.set_scale(self.scale)
         ldv.render_from_parts(self.model_parts, fn)
         img = ImageMixin.pad_image(fn, self.outline_width)
         ImageMixin.save_image(fn, img)
+        self._remember_render_settings_from_dict(kwargs)
+
+    def _get_path_from_dict(self, d):
+        path = None
+        if "output_path" in d:
+            path = d["output_path"]
+        else:
+            if self._default_img_path is not None:
+                path = self._default_img_path
+        return path
+
+    def _remember_render_settings_from_dict(self, d):
+        if "output_path" in d:
+            self._default_img_path = d["output_path"]
+        if "dpi" in d:
+            self.dpi = d["dpi"]
 
     def render_outline_image(self, **kwargs):
         """Renders the model image with outlines drawn around new parts"""
-        path = kwargs["output_path"]
+        path = self._get_path_from_dict(kwargs)
         unmasked = normalize_filename(self.masked_filenames[0][0], path)
         model = normalize_filename(self.model_filename(), path)
         outline = normalize_filename(self.outline_filename, path)
@@ -477,6 +490,7 @@ class BuildStep(LdrStep):
             self.outline_width,
         )
         ImageMixin.save_image(outline, img)
+        self._remember_render_settings_from_dict(kwargs)
 
     def _render_maskable_image(self, fn, mask_colour, submodel=None, **kwargs):
         add_colour = LdrColour.ADDED_MASK()
@@ -487,19 +501,18 @@ class BuildStep(LdrStep):
         parts = [LdrMeta.from_colour(mask_colour), LdrMeta.from_colour(add_colour)]
         parts.extend(obj_union(prev_parts, new_parts))
         parts = exclude_objs(parts, path="arrow")
-        if "dpi" in kwargs:
-            kwargs["dpi"] = self.dpi
         ldv = LDViewRender(**kwargs)
         ldv.set_scale(self.scale)
         ldv.lofi_settings()
         ldv.render_from_parts(parts, fn)
         img = ImageMixin.pad_image(fn, self.outline_width)
         ImageMixin.save_image(fn, img)
+        self._remember_render_settings_from_dict(kwargs)
 
     def render_unmasked_image(self, **kwargs):
         """Renders the model image with all new parts in ADDED_PARTS_COLOUR and
         all other parts in a transparent CLEAR_MASK_CODE colour"""
-        path = kwargs["output_path"]
+        path = self._get_path_from_dict(kwargs)
         for fn, name in self.unmasked_filenames:
             fn = normalize_filename(fn, path)
             self._render_maskable_image(fn, LdrColour.CLEAR_MASK(), name, **kwargs)
@@ -508,7 +521,7 @@ class BuildStep(LdrStep):
     def render_masked_image(self, **kwargs):
         """Renders the model image with all new parts in ADDED_PARTS_COLOUR and
         all other parts in an opaque OPAQUE_MASK_CODE colour"""
-        path = kwargs["output_path"]
+        path = self._get_path_from_dict(kwargs)
         for fn, name in self.masked_filenames:
             fn = normalize_filename(fn, path)
             self._render_maskable_image(fn, LdrColour.OPAQUE_MASK(), name, **kwargs)
@@ -556,10 +569,10 @@ class BuildStep(LdrStep):
 
     def render_parts_images(self, **kwargs):
         """Renders images of the parts used in this step."""
-        if "dpi" in kwargs:
-            kwargs["dpi"] = self.dpi
+        self._remember_render_settings_from_dict(kwargs)
         for part in self.step_parts:
-            part.render_image(**kwargs)
+            if isinstance(part, LdrPart):
+                part.render_image(**kwargs)
 
 
 def assign_part_path(p, name=None, path_names=None):
