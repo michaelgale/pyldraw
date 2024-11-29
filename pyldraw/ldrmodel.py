@@ -170,6 +170,21 @@ class LdrModel:
         return m
 
     @staticmethod
+    def from_ldrpart(part):
+        """Returns a LdrModel which represents the primitive geometry of an LdrPart instance.
+        This requires unwrapping the part and its subparts until all of the
+        primitive geometry is extracted.  It also rotates and translates the
+        geometry of the primitives to match the LdrPart.  The resulting LdrModel contains only
+        one step which includes all of the primitive objects to make the part."""
+        models = LdrModel.unwrap_part_submodels(file=part.name)
+        objs = LdrModel.recursive_unwrap_part(models["root"], models)
+        objs = [o.rotated_by_matrix(part.matrix) for o in objs]
+        objs = [o.translated(part.pos) for o in objs]
+        m = LdrModel(name=part.name)
+        m.steps = [LdrStep(objs)]
+        return m
+
+    @staticmethod
     def unwrap_part_submodels(model=None, submodels=None, file=None):
         """Recursively unwrap a part to discover all of the sub-model parts in
         the part hierarchy.  A dictionary is returned with the keys representing

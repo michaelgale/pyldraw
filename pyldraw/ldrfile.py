@@ -54,7 +54,9 @@ class UnwrapCtx:
                 self.__dict__[k] = v
 
     def tag_objects(self, objs):
-        """captures and or applies tags to objects"""
+        """Captures and or applies tags to objects.
+        Tags are assigned with !PY TAG meta commands
+        """
         for o in objs:
             if o.has_start_tag_capture:
                 tag = o.parameters["name"]
@@ -197,12 +199,6 @@ class LdrFile:
         count = sum((1 for s in self.build_steps if not s.is_virtual))
         return count
 
-    def iter_build_steps(self):
-        """Iterates through unwrapped building steps yielding a BuildStep object."""
-        for step in self.build_steps:
-            if not step.is_virtual:
-                yield step
-
     def iter_steps(self):
         """Iterates through unwrapped building steps yielding a BuildStep object."""
         for step in self.build_steps:
@@ -275,3 +271,8 @@ class LdrFile:
             ctx.idx += 1
 
         return unwrapped, ctx.idx, ctx.num
+
+    @staticmethod
+    def from_str(s, **kwargs):
+        f = LdrFile(from_str=s, **kwargs)
+        return f

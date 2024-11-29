@@ -251,7 +251,7 @@ class LdrColour:
     @staticmethod
     def code_to_rgb(code):
         if code in LDR_COLOUR_HEX:
-            rgb = LDR_COLOUR_HEX[code]
+            rgb = LDR_COLOUR_HEX[code].replace("#", "")
         elif isinstance(code, str):
             rgb = code.replace("#", "")
         else:
@@ -319,20 +319,27 @@ class LdrColour:
     @staticmethod
     def ARROW_RED():
         """LdrColour preset for red arrow shapes"""
-        c = LdrColour(804, luminance=220, edge=ARROW_RED_COLOUR)
+        c = LdrColour(ARROW_RED_CODE, luminance=240, edge=ARROW_RED_COLOUR)
         c.set_rgb(LdrColour.code_to_rgb(ARROW_RED_COLOUR))
         return c
 
     @staticmethod
     def ARROW_BLUE():
         """LdrColour preset for blue arrow shapes"""
-        c = LdrColour(801, luminance=220, edge=ARROW_BLUE_COLOUR)
+        c = LdrColour(ARROW_BLUE_CODE, luminance=240, edge=ARROW_BLUE_COLOUR)
         c.set_rgb(LdrColour.code_to_rgb(ARROW_BLUE_COLOUR))
         return c
 
     @staticmethod
     def ARROW_GREEN():
         """LdrColour preset for green arrow shapes"""
-        c = LdrColour(802, luminance=220, edge=ARROW_GREEN_COLOUR)
+        c = LdrColour(ARROW_GREEN_CODE, luminance=240, edge=ARROW_GREEN_COLOUR)
         c.set_rgb(LdrColour.code_to_rgb(ARROW_GREEN_COLOUR))
+        return c
+
+    @staticmethod
+    def ARROW_YELLOW():
+        """LdrColour preset for green arrow shapes"""
+        c = LdrColour(ARROW_YELLOW_CODE, luminance=240, edge=ARROW_YELLOW_COLOUR)
+        c.set_rgb(LdrColour.code_to_rgb(ARROW_YELLOW_COLOUR))
         return c

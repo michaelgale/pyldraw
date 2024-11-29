@@ -340,6 +340,24 @@ class LdrObj:
         obj._pts = [pt * rt for pt in obj.points]
         return obj
 
+    def rotated_by_matrix(self, matrix):
+        obj = self.copy()
+        rt = matrix.transpose()
+        obj.matrix = matrix * obj.matrix
+        obj._pts = [pt * rt for pt in obj.points]
+        return obj
+
+    def rotation_removed(self, aspect):
+        obj = self.copy()
+        a = Vector(aspect)
+        if abs(a.x) > 0:
+            obj = obj.rotated_by(Vector(-a.x, 0, 0))
+        if abs(a.y) > 0:
+            obj = obj.rotated_by(Vector(0, -a.y, 0))
+        if abs(a.z) > 0:
+            obj = obj.rotated_by(Vector(0, 0, -a.z))
+        return obj
+
     def new_path(self, path):
         obj = self.copy()
         obj.path = path
@@ -479,20 +497,14 @@ class LdrMeta(LdrObj):
     def rotation_absolute(self):
         if self.command.upper() in ("ROTSTEP", "!PY ROT"):
             if "ABS" in self.parameters["flags"]:
-                x = float(self.parameters["x"])
-                y = float(self.parameters["y"])
-                z = float(self.parameters["z"])
-                return Vector(x, y, z)
+                return Vector.from_dict(self.parameters)
         return None
 
     @property
     def rotation_relative(self):
         if self.command.upper() in ("ROTSTEP", "!PY ROT"):
             if "REL" in self.parameters["flags"]:
-                x = float(self.parameters["x"])
-                y = float(self.parameters["y"])
-                z = float(self.parameters["z"])
-                return Vector(x, y, z)
+                return Vector.from_dict(self.parameters)
             elif "FLIPX" in self.parameters["flags"]:
                 return Vector(180, 0, 0)
             elif "FLIPY" in self.parameters["flags"]:

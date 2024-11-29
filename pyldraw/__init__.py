@@ -2,12 +2,13 @@
 
 # fmt: off
 __project__ = 'pyldraw'
-__version__ = '0.3.2'
+__version__ = '0.3.3'
 # fmt: on
 
 VERSION = __project__ + "-" + __version__
 
 from .constants import *
+from .geometry import is_brick_multiple, is_plate_multiple, is_stud_multiple
 from .ldrlib import find_part, part_description
 from .support.ldview import LDViewRender
 from .ldrcolour import LdrColour

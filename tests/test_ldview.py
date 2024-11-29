@@ -19,10 +19,11 @@ LDV_ARGS = {
     "log_level": 0,
 }
 
-TEST_RENDER_STEPS = False
+TEST_RENDER_STEPS = True
 TEST_RENDER_PARTS = False
 TEST_RENDER_OUTLINE = True
-TEST_STEP_RANGE = (0, 3)
+TEST_RENDER_MASK = False
+TEST_STEP_RANGE = (10, 12)
 
 
 def test_ldvrender_part():
@@ -32,21 +33,21 @@ def test_ldvrender_part():
     assert os.path.isfile(fn)
 
 
-def test_ldvrender_file():
-    f1 = LdrFile(FN_LDR, dpi=LDV_ARGS["dpi"], initial_aspect=(-35, -40, 0))
-    if TEST_RENDER_STEPS:
-        for i, step in enumerate(f1.iter_steps()):
-            if i >= TEST_STEP_RANGE[0] and i <= TEST_STEP_RANGE[1]:
-                print(step)
-                for o in step.step_parts:
-                    print(o)
-                step.render_model(**LDV_ARGS)
-                step.render_masked_image(**LDV_ARGS)
-                step.render_unmasked_image(**LDV_ARGS)
-                if TEST_RENDER_OUTLINE:
-                    step.render_outline_image(**LDV_ARGS)
-                if TEST_RENDER_PARTS:
-                    step.render_parts_images(**LDV_ARGS)
+# def test_ldvrender_file():
+#     f1 = LdrFile(FN_LDR, dpi=LDV_ARGS["dpi"], initial_aspect=(-35, -40, 0))
+#     if TEST_RENDER_STEPS:
+#         for i, step in enumerate(f1.iter_steps()):
+#             if i >= TEST_STEP_RANGE[0] and i <= TEST_STEP_RANGE[1]:
+#                 step.render_model(prefix="test1", **LDV_ARGS)
+#                 assert os.path.isfile(step.model_filename(with_path=True))
+#                 if TEST_RENDER_MASK:
+#                     step.render_masked_image(**LDV_ARGS)
+#                     step.render_unmasked_image(**LDV_ARGS)
+#                 if TEST_RENDER_OUTLINE:
+#                     step.render_outline_image(**LDV_ARGS)
+#                     assert os.path.isfile(step.outline_filename(with_path=True))
+#                 if TEST_RENDER_PARTS:
+#                     step.render_parts_images(**LDV_ARGS)
 
 
 def test_ldvrender_features():
@@ -64,11 +65,15 @@ def test_ldvrender_features():
     if TEST_RENDER_STEPS:
         for i, step in enumerate(f2.iter_steps()):
             if i >= TEST_STEP_RANGE[0] and i <= TEST_STEP_RANGE[1]:
-                step.render_model(**LDV_ARGS)
-                step.render_masked_image(**LDV_ARGS)
-                step.render_unmasked_image(**LDV_ARGS)
+                d = step.delimited_objs
+                step.render_model(prefix="test2", **LDV_ARGS)
+                assert os.path.isfile(step.model_filename(with_path=True))
+                if TEST_RENDER_MASK:
+                    step.render_masked_image(prefix="test2", **LDV_ARGS)
+                    step.render_unmasked_image(prefix="test2", **LDV_ARGS)
                 if TEST_RENDER_OUTLINE:
-                    step.render_outline_image(**LDV_ARGS)
+                    step.render_outline_image(prefix="test2", **LDV_ARGS)
+                    assert os.path.isfile(step.outline_filename(with_path=True))
                 if TEST_RENDER_PARTS:
                     step.render_parts_images(**LDV_ARGS)
 

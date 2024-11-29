@@ -84,9 +84,9 @@ def test_names():
     assert c2.alpha == 2
 
     c3 = LdrColour.ARROW_RED()
-    assert c3.code == 804
-    assert c3.luminance == 220
-    assert c3.rgb == (1, 0, 0)
+    assert c3.code == ARROW_RED_CODE
+    assert c3.luminance == 240
+    assert c3.bgr == (32, 32, 255)
 
     c3 = LdrColour.ADDED_MASK()
     assert c3.code == ADDED_MASK_CODE

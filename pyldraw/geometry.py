@@ -227,7 +227,7 @@ class Vector(object):
 
     __slots__ = ("x", "y", "z")
 
-    def __init__(self, x, y=None, z=None):
+    def __init__(self, x=None, y=None, z=None):
         if isinstance(x, Vector):
             self.x = x.x
             self.y = x.y
@@ -236,7 +236,7 @@ class Vector(object):
             self.x = float(x[0])
             self.y = float(x[1])
             self.z = float(x[2])
-        elif y is not None and z is not None:
+        elif x is not None and y is not None and z is not None:
             self.x, self.y, self.z = float(x), float(y), float(z)
         else:
             self.x = 0
@@ -302,13 +302,29 @@ class Vector(object):
             return Vector(self.x / other, self.y / other, self.z / other)
         raise ValueError("Cannot divide %s with %s" % (self.__class__, type(other)))
 
+    def __iter__(self):
+        yield self.x
+        yield self.y
+        yield self.z
+
     def __getitem__(self, key):
         if isinstance(key, int):
             if key == 0:
                 return self.x
             elif key == 1:
                 return self.y
-            return self.z
+            elif key == 2:
+                return self.z
+        elif isinstance(key, str):
+            if key.lower() == "x":
+                return self.x
+            elif key.lower() == "y":
+                return self.y
+            elif key.lower() == "z":
+                return self.z
+        raise KeyError(
+            "Invalid key %s to extract Vector component, expect x,y,z or 0,1,2" % (key)
+        )
 
     def __setitem__(self, key, value):
         if isinstance(key, int):
@@ -318,6 +334,17 @@ class Vector(object):
                 self.y = value
             else:
                 self.z = value
+        elif isinstance(key, str):
+            if key.lower() == "x":
+                self.x = value
+            elif key.lower() == "y":
+                self.y = value
+            elif key.lower() == "z":
+                self.z = value
+        else:
+            raise KeyError(
+                "Invalid key %s to set Vector component, expect x,y,z or 0,1,2" % (key)
+            )
 
     def as_tuple(self):
         return (self.x, self.y, self.z)
@@ -353,6 +380,15 @@ class Vector(object):
 
     def offset_xy(self, xo, yo):
         return Vector(self.x + xo, self.y + yo, self.z)
+
+    def set_x(self, x):
+        return Vector(x, self.y, self.z)
+
+    def set_y(self, y):
+        return Vector(self.x, y, self.z)
+
+    def set_z(self, z):
+        return Vector(self.x, self.y, z)
 
     def polar_quad(self, r_offset=0.0):
         r, t = self.polar_xy(r_offset=0.0)
@@ -408,6 +444,18 @@ class Vector(object):
         if self.norm().almost_same_as((0, 0, -1)):
             return "-z"
         return ""
+
+    @staticmethod
+    def from_dict(d):
+        ve = Vector()
+        for k, v in d.items():
+            if k.lower() == "x":
+                ve.x = float(v)
+            elif k.lower() == "y":
+                ve.y = float(v)
+            elif k.lower() == "z":
+                ve.z = float(v)
+        return ve
 
 
 def safe_vector(v):
@@ -476,6 +524,80 @@ class BoundBox:
         bb.zmax = bb.zmax + pt.z
         return bb
 
+    def biggest_dim(self):
+        max_dim = self.xlen
+        max_axis = "x"
+        if self.ylen > max_dim:
+            max_dim = self.ylen
+            max_axis = "y"
+        if self.zlen > max_dim:
+            max_dim = self.zlen
+            max_axis = "z"
+        return max_axis, max_dim
+
+    def face(self, f):
+        """Returns the middle of the face specfied as '>x', '<y', etc."""
+        ctr = self.centre
+        if "x" in f.lower():
+            ctr["x"] = self.xmin if "<" in f else self.xmax
+        if "y" in f.lower():
+            ctr["y"] = self.ymin if "<" in f else self.ymax
+        if "z" in f.lower():
+            ctr["z"] = self.zmin if "<" in f else self.zmax
+        return ctr
+
+    def face_corners(self, f):
+        """Returns the corner vertices of the face specfied as '>x', '<y', etc."""
+        vtx = None
+        if "z" in f.lower():
+            vtx = [
+                Vector(self.xmin, self.ymin, self.zmin),
+                Vector(self.xmin, self.ymax, self.zmin),
+                Vector(self.xmax, self.ymin, self.zmin),
+                Vector(self.xmax, self.ymax, self.zmin),
+            ]
+            if ">" in f:
+                vtx = [v.set_z(self.zmax) for v in vtx]
+
+        if "y" in f.lower():
+            vtx = [
+                Vector(self.xmin, self.ymin, self.zmin),
+                Vector(self.xmin, self.ymin, self.zmax),
+                Vector(self.xmax, self.ymin, self.zmin),
+                Vector(self.xmax, self.ymin, self.zmax),
+            ]
+            if ">" in f:
+                vtx = [v.set_y(self.ymax) for v in vtx]
+
+        if "x" in f.lower():
+            vtx = [
+                Vector(self.xmin, self.ymin, self.zmin),
+                Vector(self.xmin, self.ymax, self.zmax),
+                Vector(self.xmin, self.ymax, self.zmin),
+                Vector(self.xmin, self.ymin, self.zmax),
+            ]
+            if ">" in f:
+                vtx = [v.set_x(self.xmax) for v in vtx]
+        return vtx
+
+    def axis_len(self, axis):
+        """Returns the size of an axis with either x, y, z or 0, 1, 2"""
+        if isinstance(axis, str):
+            if "x" in axis.lower():
+                return self.xlen
+            elif "y" in axis.lower():
+                return self.ylen
+            elif "z" in axis.lower():
+                return self.zlen
+        if isinstance(axis, int):
+            if axis == 0:
+                return self.xlen
+            elif axis == 1:
+                return self.ylen
+            elif axis == 2:
+                return self.zlen
+        return None
+
     def union(self, other):
         if isinstance(other, BoundBox):
             pts = [
@@ -517,3 +639,43 @@ class BoundBox:
     def from_pts(pts):
         bb = BoundBox()
         return bb.union(pts)
+
+
+from .constants import *
+
+
+def _is_on_pitch(v, p):
+    return abs(v % p) < TOL or abs(abs(v % p) - p) < TOL
+
+
+def is_stud_multiple(v, with_stud=False, with_either=False):
+    """Returns True if passed value is an integer multiple of stud LDU"""
+    pitch_ok = _is_on_pitch(v, LDR_PITCH)
+    pitch_stud_ok = _is_on_pitch((v - LDR_STUD), LDR_PITCH)
+    if with_either:
+        return pitch_ok or pitch_stud_ok
+    if with_stud:
+        return pitch_stud_ok
+    return pitch_ok
+
+
+def is_plate_multiple(v, with_stud=False, with_either=False):
+    """Returns True if passed value is an integer multiple of plate LDU"""
+    pitch_ok = _is_on_pitch(v, LDR_PLATE_PITCH)
+    pitch_stud_ok = _is_on_pitch((v - LDR_STUD), LDR_PLATE_PITCH)
+    if with_either:
+        return pitch_ok or pitch_stud_ok
+    if with_stud:
+        return pitch_stud_ok
+    return pitch_ok
+
+
+def is_brick_multiple(v, with_stud=False, with_either=False):
+    """Returns True if passed value is an integer multiple of brick LDU"""
+    pitch_ok = _is_on_pitch(v, LDR_BRICK_PITCH)
+    pitch_stud_ok = _is_on_pitch((v - LDR_STUD), LDR_BRICK_PITCH)
+    if with_either:
+        return pitch_ok or pitch_stud_ok
+    if with_stud:
+        return pitch_stud_ok
+    return pitch_ok

@@ -28,8 +28,8 @@ import hashlib
 import inspect
 
 from pyldraw.support.imgutils import ImageMixin
-from .geometry import Vector, Matrix, safe_vector, BoundBox
-from .helpers import normalize_filename, strip_part_ext, quantize, vector_str
+from .geometry import Vector, Matrix, BoundBox
+from .helpers import normalize_filename, strip_part_ext, vector_str
 from pyldraw import *
 
 
@@ -263,6 +263,7 @@ class BuildStep(LdrStep):
         self._step_bound_box = None
         # default path for images
         self._default_img_path = None
+        self._capture_prefix = None
 
     def __repr__(self) -> str:
         return "%s(%d step objects)" % (self.__class__.__name__, len(self.step_objs))
@@ -362,52 +363,14 @@ class BuildStep(LdrStep):
         """Returns true if this step just contains meta lines and no added parts to the model."""
         return len(self.step_parts) == 0
 
-    def _modified_objs(self, only_for_step=True):
-        """Ensures objects that captured between delimiter meta lines are modified
-        as applicable, e.g. translated, hidden, etc."""
-        if only_for_step:
-            objs = filter_objs(self.step_objs, is_drawable=True)
-        else:
-            objs = filter_objs(self.model_objs, is_drawable=True)
-        mod_objs = []
-
-        for d in self.delimited_objs:
-            for obj in d["objs"]:
-                # if obj is a sub-model part, then use the path to filter objects
-                # otherwise, simply use the sha1_hash attribute
-                if isinstance(obj, LdrPart) and obj.is_model:
-                    del_objs = filter_objs(objs, path=obj.path)
-                else:
-                    del_objs = filter_objs(objs, sha1_hash=obj.sha1_hash)
-                if d["trigger"].is_arrow_capture:
-                    offset = (
-                        Vector(d["offset"])
-                        * Matrix.euler_to_rot_matrix(self.aspect).transpose()
-                    )
-                    sh_objs = [o.translated(offset) for o in del_objs]
-                    mod_objs.extend(self.arrows_for_offset(d["trigger"], sh_objs))
-                    mod_objs.extend(sh_objs)
-                objs = obj_difference(objs, del_objs)
-            if d["trigger"].is_hide_part_capture:
-                objs = obj_difference(objs, del_objs)
-        return obj_union(objs, mod_objs)
-
-    def arrows_for_offset(self, meta, objs):
-        if len(objs) > 0:
-            bb = self.bound_box(objs)
-            arrows = LdrArrow.objs_from_meta(meta, aspect=self.aspect, origin=bb.centre)
-            return [o.rotated_by(self.aspect) for o in arrows]
-        else:
-            return []
-
     @property
     def step_parts(self):
-        """Returns a list of LdrPart objects representing the new parts added at this step"""
+        """Returns a list of objects representing the new parts added at this step"""
         return self._modified_objs(only_for_step=True)
 
     @property
     def model_parts(self):
-        """Returns a list of LdrPart objects representing the total model at this step."""
+        """Returns a list of objects representing the total model at this step."""
         return self._modified_objs(only_for_step=False)
 
     @property
@@ -426,38 +389,42 @@ class BuildStep(LdrStep):
         pli = pli.most_common()
         return dict(pli)
 
-    def bound_box(self, parts):
-        """Returns the bounding box of the model at this step."""
+    def bound_box(self, objs):
+        """Returns the bounding box for a list of objects.
+        This is either step_objs (for parts only added here) or
+        model_objs (the entire model upto this step)
+        """
         from .ldrmodel import LdrModel
 
-        rot = Matrix.euler_to_rot_matrix(Vector(self.aspect))
         bb = BoundBox()
-        for o in parts:
+        for o in objs:
             if isinstance(o, LdrPart):
-                m = LdrModel.from_part(o.name)
-                pos = Vector(o.pos) * rot
-                bb = bb.union(m.bound_box.translated(pos))
+                np = o.rotation_removed(self.aspect)
+                m = LdrModel.from_ldrpart(np)
+                bb = bb.union(m.bound_box)
             else:
-                pts = [Vector(pt) * rot for pt in o.points]
+                pts = [Vector(pt) for pt in o.points]
                 bb = bb.union(BoundBox.from_pts(pts))
         return bb
 
     @property
     def step_bound_box(self):
+        """Returns the bounding box of objects added at this step"""
         if self._step_bound_box is None:
             self._step_bound_box = self.bound_box(self.step_parts)
         return self._step_bound_box
 
     @property
     def model_bound_box(self):
+        """Returns the bounding box of entire model at this step"""
         if self._model_bound_box is None:
             self._model_bound_box = self.bound_box(self.model_parts)
         return self._model_bound_box
 
-    def render_model(self, **kwargs):
+    def render_model(self, prefix=None, **kwargs):
         """Renders an image of the model for this step."""
         path = self._get_path_from_dict(kwargs)
-        fn = normalize_filename(self.model_filename(), path)
+        fn = normalize_filename(self.model_filename(prefix=prefix), path)
         ldv = LDViewRender(**kwargs)
         ldv.set_scale(self.scale)
         ldv.render_from_parts(self.model_parts, fn)
@@ -465,9 +432,181 @@ class BuildStep(LdrStep):
         ImageMixin.save_image(fn, img)
         self._remember_render_settings_from_dict(kwargs)
 
-    def _get_path_from_dict(self, d):
+    def render_outline_image(self, prefix=None, **kwargs):
+        """Renders the model image with outlines drawn around new parts"""
+        path = self._get_path_from_dict(kwargs)
+        model = normalize_filename(self.model_filename(prefix=prefix), path)
+        unmasked = normalize_filename(self.masked_filenames(prefix=prefix)[0][0], path)
+        outline = normalize_filename(self.outline_filename(prefix=prefix), path)
+        # automatically render missing images to make composite outline image
+        if not os.path.isfile(model):
+            self.render_model(prefix=prefix, **kwargs)
+        if not os.path.isfile(unmasked):
+            self.render_masked_image(prefix=prefix, **kwargs)
+        mask_colour = LdrColour.ADDED_MASK()
+        # composite model image with outline mask
+        img = ImageMixin.merge_with_outlines(
+            model,
+            mask_colour.hue,
+            unmasked,
+            self.outline_colour.bgr,
+            self.outline_width,
+        )
+        ImageMixin.save_image(outline, img)
+        self._remember_render_settings_from_dict(kwargs)
+
+    def render_unmasked_image(self, prefix=None, **kwargs):
+        """Renders the model image with all new parts in ADDED_PARTS_COLOUR and
+        all other parts in a transparent CLEAR_MASK_CODE colour"""
+        path = self._get_path_from_dict(kwargs)
+        for fn, name in self.unmasked_filenames(prefix=prefix):
+            fn = normalize_filename(fn, path)
+            self._render_maskable_image(fn, LdrColour.CLEAR_MASK(), name, **kwargs)
+            # centroids = ImageMixin.get_centroids_of_hue(fn, ADDED_PARTS_HSV_HUE, area_thr=750, dim_thr=50)
+
+    def render_masked_image(self, prefix=None, **kwargs):
+        """Renders the model image with all new parts in ADDED_PARTS_COLOUR and
+        all other parts in an opaque OPAQUE_MASK_CODE colour"""
+        path = self._get_path_from_dict(kwargs)
+        for fn, name in self.masked_filenames(prefix=prefix):
+            fn = normalize_filename(fn, path)
+            self._render_maskable_image(fn, LdrColour.OPAQUE_MASK(), name, **kwargs)
+            # centroids = ImageMixin.get_centroids_of_hue(fn, ADDED_PARTS_HSV_HUE, area_thr=750, dim_thr=50)
+
+    def model_filename(self, suffix=None, prefix=None, with_path=False):
+        """Returns a unique representative filename for the step model image.
+        The filename is based on attributes such as resolution, scale and hash code."""
+        suffix = suffix if suffix is not None else ""
+        if prefix is not None:
+            self._capture_prefix = prefix
+            prefix = "%s_" % (prefix)
+        elif prefix is None and not self._capture_prefix is None:
+            prefix = "%s_" % (self._capture_prefix)
+        else:
+            prefix = ""
+        fn = "%s%d%s_%d_%d_%.2f_%s.png" % (
+            prefix,
+            self.idx,
+            suffix,
+            self.level,
+            self.dpi,
+            self.scale,
+            self.sha1_hash,
+        )
+        if with_path:
+            path = self._get_path_from_dict()
+            if path is not None:
+                return normalize_filename(fn, path)
+        return fn
+
+    def masked_filenames(self, prefix=None):
+        """Returns one or more filenames for masked elements."""
+        return self._maskable_filenames("m", prefix=prefix)
+
+    def unmasked_filenames(self, prefix=None):
+        """Returns one or more filenames for unmasked elements."""
+        return self._maskable_filenames("u", prefix=prefix)
+
+    def outline_filename(self, prefix=None, with_path=False):
+        return self.model_filename(suffix="o", prefix=prefix, with_path=with_path)
+
+    def render_parts_images(self, **kwargs):
+        """Renders images of the parts used in this step."""
+        self._remember_render_settings_from_dict(kwargs)
+        for part in self.step_parts:
+            if isinstance(part, LdrPart):
+                part.render_image(**kwargs)
+
+    def _modified_objs(self, only_for_step=True):
+        """Ensures objects that captured between delimiter meta lines are modified
+        as applicable, e.g. translated, hidden, etc.
+        if only_for_step is True processes step objects added at this step,
+        otherwise it processes all model objects at this step."""
+        if only_for_step:
+            objs = filter_objs(self.step_objs, is_drawable=True)
+        else:
+            objs = filter_objs(self.model_objs, is_drawable=True)
+        mod_objs = []
+
+        for d in self.delimited_objs:
+            del_objs = []
+            for obj in d["objs"]:
+                if isinstance(obj, LdrPart) and obj.is_model:
+                    f = filter_objs(objs, path=obj.path)
+                else:
+                    f = filter_objs(objs, sha1_hash=obj.sha1_hash)
+                if len(f) > 0:
+                    del_objs.extend(f)
+
+            # !PY ARROW capture(s) in this step
+            if d["trigger"].is_arrow_capture:
+                offset = (
+                    Vector(d["offset"])
+                    * Matrix.euler_to_rot_matrix(self.aspect).transpose()
+                )
+                sh_objs = [o.translated(offset) for o in del_objs]
+                mod_objs.extend(self._arrows_for_offset(d["trigger"], sh_objs))
+                mod_objs.extend(sh_objs)
+                objs = obj_difference(objs, del_objs)
+
+            # !PY HIDE_PARTS capture(s) in this step
+            if d["trigger"].is_hide_part_capture:
+                objs = obj_difference(objs, del_objs)
+
+        return obj_union(objs, mod_objs)
+
+    def _arrows_for_offset(self, meta, objs):
+        """Returns primitive objects which draw assembly arrows.
+        These arrows are automatically generated by parsing the
+        !PY ARROW BEGIN meta command and computing the arrow end points
+        from the bounding box of translated parts associated with the arrow(s)"""
+        if len(objs) > 0:
+            bb = self.bound_box(objs)
+            arrows = LdrArrow.objs_from_meta(meta, aspect=self.aspect, boundbox=bb)
+            return [o.rotated_by(self.aspect) for o in arrows]
+        else:
+            return []
+
+    def _maskable_filenames(self, suffix, prefix=None):
+        """Returns one or more filenames for maskable elements.
+        One filename is returned if no sub-models are added in this step
+        If there are sub-models, additional filenames are returned,
+        as tuples (filename, sub-model name); one for each unique sub-model."""
+        file_list = [(self.model_filename(suffix=suffix, prefix=prefix), None)]
+        for sub_model, _ in self.sub_models.items():
+            name = strip_part_ext(sub_model)
+            file_list.append(
+                (
+                    self.model_filename(suffix="%s-%s" % (suffix, name), prefix=prefix),
+                    name,
+                )
+            )
+        return file_list
+
+    def _render_maskable_image(self, fn, mask_colour, submodel=None, **kwargs):
+        """Renders an image with either a transparent or opaque mask applied
+        to parts previously added, i.e. not from this step."""
+        add_colour = LdrColour.ADDED_MASK()
+        step_parts = filter_objs(self.step_parts, path=submodel)
+        prev_parts = obj_difference(self.model_parts, step_parts)
+        prev_parts = obj_change_colour(prev_parts, mask_colour)
+        new_parts = obj_change_colour(step_parts, add_colour, path=submodel)
+
+        parts = [LdrMeta.from_colour(mask_colour), LdrMeta.from_colour(add_colour)]
+        parts.extend(obj_union(prev_parts, new_parts))
+        parts = exclude_objs(parts, path="arrow")
+
+        ldv = LDViewRender(**kwargs)
+        ldv.set_scale(self.scale)
+        ldv.lofi_settings()
+        ldv.render_from_parts(parts, fn)
+        img = ImageMixin.pad_image(fn, self.outline_width)
+        ImageMixin.save_image(fn, img)
+        self._remember_render_settings_from_dict(kwargs)
+
+    def _get_path_from_dict(self, d=None):
         path = None
-        if "output_path" in d:
+        if d is not None and "output_path" in d:
             path = d["output_path"]
         else:
             if self._default_img_path is not None:
@@ -479,105 +618,6 @@ class BuildStep(LdrStep):
             self._default_img_path = d["output_path"]
         if "dpi" in d:
             self.dpi = d["dpi"]
-
-    def render_outline_image(self, **kwargs):
-        """Renders the model image with outlines drawn around new parts"""
-        path = self._get_path_from_dict(kwargs)
-        unmasked = normalize_filename(self.masked_filenames[0][0], path)
-        model = normalize_filename(self.model_filename(), path)
-        outline = normalize_filename(self.outline_filename, path)
-        mask_colour = LdrColour.ADDED_MASK()
-        img = ImageMixin.merge_with_outlines(
-            model,
-            mask_colour.hue,
-            unmasked,
-            self.outline_colour.bgr,
-            self.outline_width,
-        )
-        ImageMixin.save_image(outline, img)
-        self._remember_render_settings_from_dict(kwargs)
-
-    def _render_maskable_image(self, fn, mask_colour, submodel=None, **kwargs):
-        add_colour = LdrColour.ADDED_MASK()
-        step_parts = filter_objs(self.step_parts, path=submodel)
-        prev_parts = obj_difference(self.model_parts, step_parts)
-        prev_parts = obj_change_colour(prev_parts, mask_colour)
-        new_parts = obj_change_colour(step_parts, add_colour, path=submodel)
-        parts = [LdrMeta.from_colour(mask_colour), LdrMeta.from_colour(add_colour)]
-        parts.extend(obj_union(prev_parts, new_parts))
-        parts = exclude_objs(parts, path="arrow")
-        ldv = LDViewRender(**kwargs)
-        ldv.set_scale(self.scale)
-        ldv.lofi_settings()
-        ldv.render_from_parts(parts, fn)
-        img = ImageMixin.pad_image(fn, self.outline_width)
-        ImageMixin.save_image(fn, img)
-        self._remember_render_settings_from_dict(kwargs)
-
-    def render_unmasked_image(self, **kwargs):
-        """Renders the model image with all new parts in ADDED_PARTS_COLOUR and
-        all other parts in a transparent CLEAR_MASK_CODE colour"""
-        path = self._get_path_from_dict(kwargs)
-        for fn, name in self.unmasked_filenames:
-            fn = normalize_filename(fn, path)
-            self._render_maskable_image(fn, LdrColour.CLEAR_MASK(), name, **kwargs)
-            # centroids = ImageMixin.get_centroids_of_hue(fn, ADDED_PARTS_HSV_HUE, area_thr=750, dim_thr=50)
-
-    def render_masked_image(self, **kwargs):
-        """Renders the model image with all new parts in ADDED_PARTS_COLOUR and
-        all other parts in an opaque OPAQUE_MASK_CODE colour"""
-        path = self._get_path_from_dict(kwargs)
-        for fn, name in self.masked_filenames:
-            fn = normalize_filename(fn, path)
-            self._render_maskable_image(fn, LdrColour.OPAQUE_MASK(), name, **kwargs)
-            # centroids = ImageMixin.get_centroids_of_hue(fn, ADDED_PARTS_HSV_HUE, area_thr=750, dim_thr=50)
-
-    def model_filename(self, suffix=None):
-        """Returns a unique representative filename for the step model image.
-        The filename is based on attributes such as resolution, scale and hash code."""
-        suffix = suffix if suffix is not None else ""
-        return "%d%s_%d_%d_%.2f_%s.png" % (
-            self.idx,
-            suffix,
-            self.level,
-            self.dpi,
-            self.scale,
-            self.sha1_hash,
-        )
-
-    def _maskable_filenames(self, suffix):
-        """Returns one or more filenames for maskable elements.
-        One filename is returned if no sub-models are added in this step
-        If there are sub-models, additional filenames are returned,
-        as tuples (filename, sub-model name); one for each unique sub-model."""
-        file_list = [(self.model_filename(suffix=suffix), None)]
-        for sub_model, _ in self.sub_models.items():
-            name = strip_part_ext(sub_model)
-            file_list.append(
-                (self.model_filename(suffix="%s-%s" % (suffix, name)), name)
-            )
-        return file_list
-
-    @property
-    def masked_filenames(self):
-        """Returns one or more filenames for masked elements."""
-        return self._maskable_filenames("m")
-
-    @property
-    def unmasked_filenames(self):
-        """Returns one or more filenames for unmasked elements."""
-        return self._maskable_filenames("u")
-
-    @property
-    def outline_filename(self):
-        return self.model_filename(suffix="o")
-
-    def render_parts_images(self, **kwargs):
-        """Renders images of the parts used in this step."""
-        self._remember_render_settings_from_dict(kwargs)
-        for part in self.step_parts:
-            if isinstance(part, LdrPart):
-                part.render_image(**kwargs)
 
 
 def assign_part_path(p, name=None, path_names=None):

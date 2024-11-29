@@ -90,6 +90,12 @@ def test_render():
     ldv.render_from_parts(_ldv_objs(a1), "arrow-zp.png")
     assert os.path.isfile(IMG_PATH + "arrow-zp.png")
 
+    a1 = LdrArrow(tail_pos=(0, 3 * ARROW_LEN, 0))
+    a1.aspect = LDV_ASPECT
+    a1.dash_line_style()
+    ldv.render_from_parts(_ldv_objs(a1), "arrow-dashline.png")
+    assert os.path.isfile(IMG_PATH + "arrow-dashline.png")
+
     if not TEST_RENDER_ALL_ARROWS:
         return
 
@@ -116,17 +122,17 @@ def test_render():
 
     a1 = LdrArrow(tail_pos=(-1.25 * ARROW_LEN, 0, 0))
     a1.aspect = LDV_ASPECT
-    a1.dash_style()
+    a1.wide_style()
     ldv.render_from_parts(_ldv_objs(a1), "arrow-dash1.png")
     assert os.path.isfile(IMG_PATH + "arrow-dash1.png")
     a1 = LdrArrow(tail_pos=(-1.5 * ARROW_LEN, 0, 0))
     a1.aspect = LDV_ASPECT
-    a1.dash_style()
+    a1.wide_style()
     ldv.render_from_parts(_ldv_objs(a1), "arrow-dash2.png")
     assert os.path.isfile(IMG_PATH + "arrow-dash2.png")
     a1 = LdrArrow(tail_pos=(-1.75 * ARROW_LEN, 0, 0))
     a1.aspect = LDV_ASPECT
-    a1.dash_style()
+    a1.wide_style()
     ldv.render_from_parts(_ldv_objs(a1), "arrow-dash3.png")
     assert os.path.isfile(IMG_PATH + "arrow-dash3.png")
 
@@ -144,3 +150,39 @@ def test_render():
     a1.aspect = LDV_ASPECT
     ldv.render_from_parts(_ldv_objs(a1), "arrow-xpr.png")
     assert os.path.isfile(IMG_PATH + "arrow-xpr.png")
+
+
+TEST_ARROW_MODEL1 = """
+0 untitled model
+0 Name: 
+0 Author: Michael Gale
+1 2 0 0 0 1 0 0 0 1 0 -0 0 1 41539.dat
+0 STEP
+0 !PY ARROW BEGIN COLOUR 801 AUTO 0 -100 0
+1 1 -40 -24 -10 1 0 0 0 1 0 -0 0 1 3010.dat
+0 !PY ARROW END
+0 !PY ARROW BEGIN COLOUR 11 EXTENTS WIDE 0 -100 0
+1 4 -40 -24 70 1 0 0 0 1 0 -0 0 1 3010.dat
+0 !PY ARROW END
+0 !PY ARROW BEGIN AUTO 60 0 0
+1 4 50 -8 60 0 0 1 0 1 0 1 0 0 3023.dat
+0 !PY ARROW END
+0 !PY ARROW BEGIN COLOUR 14 AUTO 0 0 -40
+1 1 50 -24 30 0 0 1 0 1 0 1 0 0 3005.dat
+0 !PY ARROW END
+0 !PY ARROW BEGIN COLOUR 14 WIDE 0 0 -100
+1 71 0 -24 -70 1 0 0 0 1 0 -0 0 1 3008.dat
+0 !PY ARROW END
+0 STEP
+1 14 70 -24 -20 0 0 -1 0 1 0 1 0 0 30414.dat
+0 !PY ARROW BEGIN 60 0 0 AUTO
+1 72 88 -14 -20 -0 -1 -0 0 0 -1 1 -0 0 3710.dat
+0 !PY ARROW END
+0 STEP
+"""
+
+
+def test_arrow_extents():
+    f1 = LdrFile.from_str(TEST_ARROW_MODEL1, initial_aspect=(-35, 55, 0))
+    for i, step in enumerate(f1.iter_steps()):
+        step.render_model(**LDV_ARGS)

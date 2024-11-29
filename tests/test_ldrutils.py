@@ -207,6 +207,14 @@ def test_bound_box():
     assert bb.xlen == 4
     assert bb.ylen == 14
     assert bb.zlen == 45
+    assert bb.biggest_dim()[0] == "z"
+    assert bb.biggest_dim()[1] == 45
+    assert bb.face(">X").almost_same_as((3, 9, 9.5))
+    assert bb.face("<x").almost_same_as((-1, 9, 9.5))
+    assert bb.face(">z").almost_same_as((1, 9, 32))
+    assert bb.face("<Z").almost_same_as((1, 9, -13))
+    assert bb.face(">y").almost_same_as((1, 16, 9.5))
+    assert bb.face("<Y").almost_same_as((1, 2, 9.5))
 
     pts = [Vector(-5, 1, 0), Vector(16, -7, 32), Vector(1.5, 7, -13)]
     bb = BoundBox.from_pts(pts)
@@ -231,6 +239,8 @@ def test_bound_box():
     assert bb.xlen == 66
     assert bb.ylen == 14
     assert bb.zlen == 113
+    assert bb.biggest_dim()[0] == "z"
+    assert bb.biggest_dim()[1] == 113
 
     bb = bb.union(Vector(-51, 18, 101))
     assert bb.xmin == -51
@@ -297,6 +307,34 @@ def test_bound_box():
     assert bb1.xlen == 60
     assert bb1.ylen == 32
     assert bb1.zlen == 60
+
+    o1 = Vector(0, -100, 0)
+    assert LdrArrow.norm_to_face(o1) == ">y"
+    o1 = Vector(0, 0, 50)
+    assert LdrArrow.norm_to_face(o1) == "<z"
+
+
+def test_pitch_test():
+    assert is_plate_multiple(8)
+    assert is_plate_multiple(24)
+    assert not is_plate_multiple(9)
+    assert is_plate_multiple(12, with_stud=True)
+    assert is_plate_multiple(12, with_either=True)
+    assert not is_plate_multiple(8, with_stud=True)
+
+    assert is_brick_multiple(24)
+    assert is_brick_multiple(96)
+    assert not is_brick_multiple(28)
+    assert is_brick_multiple(100, with_stud=True)
+    assert is_brick_multiple(100, with_either=True)
+    assert not is_brick_multiple(96, with_stud=True)
+
+    assert is_stud_multiple(40)
+    assert is_stud_multiple(20)
+    assert not is_stud_multiple(30)
+    assert is_stud_multiple(44, with_stud=True)
+    assert is_stud_multiple(44, with_either=True)
+    assert not is_stud_multiple(40, with_stud=True)
 
 
 def test_param_parsing():

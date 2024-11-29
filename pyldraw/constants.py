@@ -23,8 +23,33 @@
 #
 # Constants
 
+TOL = 1e-3
+LDR_LDU = 0.4
+LDR_PITCH = 20
+LDR_HALF = 10
+LDR_PLATE_PITCH = 8
+LDR_BRICK_PITCH = 24
+LDR_STUD = 4
+
 LDR_OPT_COLOUR = 24
 LDR_DEF_COLOUR = 16
+
+CLEAR_MASK_CODE = 502
+OPAQUE_MASK_CODE = 599
+ADDED_MASK_CODE = 598
+
+CLEAR_MASK_COLOUR = "#80FF80"
+OPAQUE_MASK_COLOUR = "#20FF20"
+ADDED_MASK_COLOUR = "#901F76"
+
+ARROW_RED_CODE = 804
+ARROW_BLUE_CODE = 801
+ARROW_GREEN_CODE = 802
+ARROW_YELLOW_CODE = 803
+ARROW_RED_COLOUR = "#FF2020"
+ARROW_BLUE_COLOUR = "#0830FF"
+ARROW_GREEN_COLOUR = "#08C010"
+ARROW_YELLOW_COLOUR = "#FFF050"
 
 LDR_COLOUR_NAME = {
     -1: "None",
@@ -163,9 +188,10 @@ LDR_COLOUR_NAME = {
     186: "Metallic Dark Green",
     368: "Neon Yellow",
     402: "Reddish Orange",
-    801: "Arrow Blue",
-    802: "Arrow Green",
-    804: "Arrow Red",
+    ARROW_BLUE_CODE: "Arrow Blue",
+    ARROW_GREEN_CODE: "Arrow Green",
+    ARROW_RED_CODE: "Arrow Red",
+    ARROW_YELLOW_CODE: "Arrow Yellow",
 }
 LDR_CODE_FROM_NAME = dict(map(reversed, LDR_COLOUR_NAME.items()))
 
@@ -306,9 +332,10 @@ LDR_COLOUR_HEX = {
     186: "008e3c",  #'Metallic Dark Green'
     368: "EBD800",  # Neon Yellow
     402: "CA4C0B",  # Reddish Orange
-    801: "0830FF",  # Arrow Blue
-    802: "08B010",  # Arrow Green
-    804: "FF0000",  # Arrow Red
+    ARROW_BLUE_CODE: ARROW_BLUE_COLOUR,  # Arrow Blue
+    ARROW_GREEN_CODE: ARROW_GREEN_COLOUR,  # Arrow Green
+    ARROW_RED_CODE: ARROW_RED_COLOUR,  # Arrow Red
+    ARROW_YELLOW_CODE: ARROW_YELLOW_COLOUR,  # Arrow Yellow
 }
 
 LDR_CODE_FROM_HEX = dict(map(reversed, LDR_COLOUR_HEX.items()))
@@ -373,7 +400,7 @@ LDR_META_DICT = {
     "SYNTH HIDE": "",
     "SYNTHESIZED BEGIN": "",
     "SYNTHESIZED END": "",
-    "!PY ARROW BEGIN": "[LENGTH length] [RATIO ratio] [TILT tilt] [COLOUR colour] <x> <y> <z>",
+    "!PY ARROW BEGIN": "[LENGTH length] [RATIO ratio] [TILT tilt] [COLOUR colour] (EXTENTS | WIDE | AUTO | NO_ARROW) <x> <y> <z>",
     "!PY ARROW END": "",
     "!PY HIDE_PARTS BEGIN": "",
     "!PY HIDE_PARTS END": "",
@@ -416,17 +443,6 @@ RICH_PARAM_COLOUR = "#CCCCCC"
 DEFAULT_PLI_SCALE = 0.57
 DEFAULT_PLI_ASPECT = (-35, -35, 0)
 DEFAULT_DPI = 300
-
-CLEAR_MASK_CODE = 502
-OPAQUE_MASK_CODE = 599
-ADDED_MASK_CODE = 598
-
-CLEAR_MASK_COLOUR = "#80FF80"
-OPAQUE_MASK_COLOUR = "#20FF20"
-ADDED_MASK_COLOUR = "#901F76"
-ARROW_RED_COLOUR = "#FF0000"
-ARROW_BLUE_COLOUR = "#0830FF"
-ARROW_GREEN_COLOUR = "#08C010"
 
 # 0 !COLOUR TrueBlack                                             CODE 500   VALUE #05131D   EDGE #05131D
 # 0 !COLOUR TrueWhite                                             CODE 501   VALUE #FFFFFF   EDGE #FFFFFF

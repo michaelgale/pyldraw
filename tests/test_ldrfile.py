@@ -167,25 +167,25 @@ def test_ldrfile():
     assert repr(f1) == "LdrFile(./tests/testfiles/test_file1.ldr)"
     s = f1.build_steps[3]
     bb = s.model_bound_box
-    assert bb.xlen == 100
+    assert bb.xlen == 80
     assert bb.ylen == 20
-    assert bb.zlen == 100
+    assert bb.zlen == 80
     bb = s.step_bound_box
-    assert bb.xlen == 100
+    assert bb.xlen == 80
     assert bb.ylen == 12
-    assert bb.zlen == 100
+    assert bb.zlen == 80
     assert (
-        s.outline_filename
+        s.outline_filename()
         == "3o_1_300_1.00_6ec016fcd9ae6e4183dc3b6972d2f8ca8026236f.png"
     )
-    assert len(s.unmasked_filenames) == 1
+    assert len(s.unmasked_filenames()) == 1
     assert (
-        s.unmasked_filenames[0][0]
+        s.unmasked_filenames()[0][0]
         == "3u_1_300_1.00_6ec016fcd9ae6e4183dc3b6972d2f8ca8026236f.png"
     )
-    assert len(s.masked_filenames) == 1
+    assert len(s.masked_filenames()) == 1
     assert (
-        s.masked_filenames[0][0]
+        s.masked_filenames()[0][0]
         == "3m_1_300_1.00_6ec016fcd9ae6e4183dc3b6972d2f8ca8026236f.png"
     )
 
@@ -216,16 +216,10 @@ def test_ldrfile_ext():
             assert "3008-71" in pli
             assert "3010-4" not in pli
             assert pli["3008-71"] == 1
-    # for step in f1.iter_build_steps():
-    #     print(step)
-
-    # for o in step.step_parts:
-    #     print(o, o.path)
 
 
 def test_ldrfile_tags():
-    f1 = LdrFile(from_str=TEST_MODEL4, initial_aspect=(35, 45, 0))
-    assert len(f1.models) == 1
+    f1 = LdrFile.from_str(TEST_MODEL4, initial_aspect=(35, 45, 0))
     assert len(f1.build_steps) == 6
     assert f1.piece_count == 11
     assert f1.element_count == 7

@@ -49,6 +49,7 @@ def test_ldrmeta():
     assert isinstance(o1, LdrMeta)
     o2 = LdrObj.from_str("0 ROTSTEP 30 50 25 ABS")
     assert isinstance(o2, LdrMeta)
+    assert o2.rotation_absolute.almost_same_as((30, 50, 25))
     o3 = LdrObj.from_str("0 FILE MyModel.ldr")
     assert isinstance(o3, LdrMeta)
     o3 = LdrObj.from_str("0 NOFILE")
@@ -155,14 +156,49 @@ def test_ldrpart():
 
 def test_find_parts():
     m1 = LdrModel.from_part("3001.dat")
+    s1 = m1.steps[0]
+    s1.objs = [o.rotated_by((0, 90, 0)) for o in s1.objs]
     prims = [o for o in m1.iter_primitives()]
     assert len(prims) == 886
     bb = m1.bound_box
-    assert bb.xlen == 80
-    assert bb.ylen == 28
-    assert bb.zlen == 40
+    assert abs(bb.xlen - 40) < 1e-3
+    assert abs(bb.ylen - 28) < 1e-3
+    assert abs(bb.zlen - 80) < 1e-3
     prims = [p.rotated_by(LDV_ASPECT) for p in m1.iter_primitives()]
     ldv = LDViewRender(**LDV_ARGS)
     fn = m1.name + ".png"
     ldv.render_from_parts(prims, fn)
     assert os.path.isfile(IMG_PATH + fn)
+
+
+def test_primitive_orientation():
+    p1 = LdrPart().from_str("1 4 0 0 0 0 0 1 0 1 0 1 0 0 3001.dat")
+    m1 = LdrModel.from_ldrpart(p1)
+    prims = [o for o in m1.iter_primitives()]
+    assert len(prims) == 886
+    bb = m1.bound_box
+    assert abs(bb.xlen - 40) < 1e-3
+    assert abs(bb.ylen - 28) < 1e-3
+    assert abs(bb.zlen - 80) < 1e-3
+    prims = [p.rotated_by(LDV_ASPECT) for p in m1.iter_primitives()]
+    ldv = LDViewRender(**LDV_ARGS)
+    fn = m1.name + "_rot.png"
+    ldv.render_from_parts(prims, fn)
+    assert os.path.isfile(IMG_PATH + fn)
+
+
+from pyldraw.geometry import Vector, Matrix
+
+
+def test_norm_rot():
+    p = LdrPart.from_str(
+        "1 4 34.3976 -143.398 -11.3938 0.5736 0 0.8192 0.4698 0.8192 -0.329 -0.671 0.5736 0.4698 3010.dat"
+    )
+    n = LdrPart.from_str("1 4 -40 -124 70 1 0 0 0 1 0 0 0 1 3010.dat")
+    a = Vector(-35.0, 55.0, 0.0)
+    rot = Matrix.euler_to_rot_matrix(a)
+    p1 = n.transformed(matrix=rot)
+    assert p1 == p
+
+    p2 = p.rotation_removed(a)
+    assert p2 == n
