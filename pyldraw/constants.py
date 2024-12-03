@@ -401,6 +401,7 @@ LDR_META_DICT = {
     "SYNTHESIZED BEGIN": "",
     "SYNTHESIZED END": "",
     "!PY ARROW BEGIN": "[LENGTH length] [RATIO ratio] [TILT tilt] [COLOUR colour] (EXTENTS | WIDE | AUTO | NO_ARROW) <x> <y> <z>",
+    "!PY ARROW INSERT": "[COLOUR colour] (WIDE) <x1> <y1> <z1> <x2> <y2> <z2>",
     "!PY ARROW END": "",
     "!PY HIDE_PARTS BEGIN": "",
     "!PY HIDE_PARTS END": "",

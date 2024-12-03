@@ -90,14 +90,14 @@ def test_render():
     ldv.render_from_parts(_ldv_objs(a1), "arrow-zp.png")
     assert os.path.isfile(IMG_PATH + "arrow-zp.png")
 
+    if not TEST_RENDER_ALL_ARROWS:
+        return
+
     a1 = LdrArrow(tail_pos=(0, 3 * ARROW_LEN, 0))
     a1.aspect = LDV_ASPECT
     a1.dash_line_style()
     ldv.render_from_parts(_ldv_objs(a1), "arrow-dashline.png")
     assert os.path.isfile(IMG_PATH + "arrow-dashline.png")
-
-    if not TEST_RENDER_ALL_ARROWS:
-        return
 
     a1 = LdrArrow(colour=802, tail_pos=(0, -ARROW_LEN, 0), tilt=55)
     a1.aspect = LDV_ASPECT

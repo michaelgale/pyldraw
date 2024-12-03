@@ -190,27 +190,20 @@ class LdrArrow:
         if "x" in self.direction.dir_str:
             # prefer arrow heads to lie "flat" with respect to the x-z axis
             angle = 90 * self.direction
-            objs = [o.translated(-1.0 * self.tip_pos) for o in objs]
-            objs = [o.rotated_by(angle) for o in objs]
-            objs = [o.translated(self.tip_pos) for o in objs]
+            objs = [o.rotated_by(angle, origin=self.tip_pos) for o in objs]
 
         if "y" in self.direction.dir_str and self.aspect is not None and not self.wide:
             # prefer arrows to face the "camera" if standing vertical
             # except if they are wide
-            if "+" in self.direction.dir_str:
-                angle = (90 - self.aspect[1]) * self.direction
-            else:
-                angle = -(90 - self.aspect[1]) * self.direction
-            objs = [o.translated(-1.0 * self.tip_pos) for o in objs]
-            objs = [o.rotated_by(angle) for o in objs]
-            objs = [o.translated(self.tip_pos) for o in objs]
+            angle = (90 - self.aspect[1]) * self.direction
+            if "-" in self.direction.dir_str:
+                angle = -1.0 * angle
+            objs = [o.rotated_by(angle, origin=self.tip_pos) for o in objs]
 
         if abs(self.tilt) > 0:
             # apply optional rotation about arrow's "roll" axis
             angle = self.tilt * self.direction
-            objs = [o.translated(-1.0 * self.tip_pos) for o in objs]
-            objs = [o.rotated_by(angle) for o in objs]
-            objs = [o.translated(self.tip_pos) for o in objs]
+            objs = [o.rotated_by(angle, origin=self.tip_pos) for o in objs]
 
         return objs
 

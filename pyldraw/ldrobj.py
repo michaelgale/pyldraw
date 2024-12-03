@@ -332,12 +332,16 @@ class LdrObj:
     def set_rotation(self, angle):
         self.matrix = Matrix.euler_to_rot_matrix(angle)
 
-    def rotated_by(self, angle):
+    def rotated_by(self, angle, origin=None):
         obj = self.copy()
+        if origin is not None:
+            obj = obj.translated(-1.0 * origin)
         rm = Matrix.euler_to_rot_matrix(angle)
         rt = rm.transpose()
         obj.matrix = rm * obj.matrix
         obj._pts = [pt * rt for pt in obj.points]
+        if origin is not None:
+            obj = obj.translated(origin)
         return obj
 
     def rotated_by_matrix(self, matrix):

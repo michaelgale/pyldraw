@@ -198,15 +198,6 @@ class Matrix(object):
         """flatten the matrix"""
         return tuple(reduce(lambda x, y: x + y, self.rows))
 
-    def fix_diagonal(self):
-        """Some applications do not like matrices with zero diagonal elements."""
-        corrected = False
-        for i in range(3):
-            if self.rows[i][i] == 0.0:
-                self.rows[i][i] = 0.001
-                corrected = True
-        return corrected
-
     @staticmethod
     def euler_to_rot_matrix(euler):
         """converts a 3D tuple of euler rotation angles into a rotation matrix"""
@@ -254,7 +245,6 @@ class Vector(object):
         x = self.x + other.x
         y = self.y + other.y
         z = self.z + other.z
-        # Return a new object.
         return Vector(x, y, z)
 
     __radd__ = __add__
@@ -264,7 +254,6 @@ class Vector(object):
         x = self.x - other.x
         y = self.y - other.y
         z = self.z - other.z
-        # Return a new object.
         return Vector(x, y, z)
 
     def __rsub__(self, other):
@@ -272,7 +261,6 @@ class Vector(object):
         x = other.x - self.x
         y = other.y - self.y
         z = other.z - self.z
-        # Return a new object.
         return Vector(x, y, z)
 
     def __cmp__(self, other):
@@ -381,27 +369,14 @@ class Vector(object):
     def offset_xy(self, xo, yo):
         return Vector(self.x + xo, self.y + yo, self.z)
 
-    def set_x(self, x):
+    def replace_x(self, x):
         return Vector(x, self.y, self.z)
 
-    def set_y(self, y):
+    def replace_y(self, y):
         return Vector(self.x, y, self.z)
 
-    def set_z(self, z):
+    def replace_z(self, z):
         return Vector(self.x, self.y, z)
-
-    def polar_quad(self, r_offset=0.0):
-        r, t = self.polar_xy(r_offset=0.0)
-        if t > 0:
-            if t > 90.0:
-                return "TL"
-            else:
-                return "TR"
-        else:
-            if t < -90.0:
-                return "BL"
-            else:
-                return "BR"
 
     def almost_same_as(self, other, tolerance=1e-3):
         if not isinstance(other, Vector):
@@ -413,20 +388,6 @@ class Vector(object):
         if abs(self.z - other.z) > tolerance:
             return False
         return True
-
-    def is_colinear_with(self, other, tolerance=1e-3):
-        """Returns true if two coordinates are the same between
-        two vectors and are co-aligned."""
-        if not isinstance(other, Vector):
-            return False
-        matched_axis = 0
-        if abs(self.x - other.x) <= tolerance:
-            matched_axis += 1
-        if abs(self.y - other.y) <= tolerance:
-            matched_axis += 1
-        if abs(self.z - other.z) <= tolerance:
-            matched_axis += 1
-        return matched_axis
 
     @property
     def dir_str(self):
@@ -557,7 +518,7 @@ class BoundBox:
                 Vector(self.xmax, self.ymax, self.zmin),
             ]
             if ">" in f:
-                vtx = [v.set_z(self.zmax) for v in vtx]
+                vtx = [v.replace_z(self.zmax) for v in vtx]
 
         if "y" in f.lower():
             vtx = [
@@ -567,7 +528,7 @@ class BoundBox:
                 Vector(self.xmax, self.ymin, self.zmax),
             ]
             if ">" in f:
-                vtx = [v.set_y(self.ymax) for v in vtx]
+                vtx = [v.replace_y(self.ymax) for v in vtx]
 
         if "x" in f.lower():
             vtx = [
@@ -577,7 +538,7 @@ class BoundBox:
                 Vector(self.xmin, self.ymin, self.zmax),
             ]
             if ">" in f:
-                vtx = [v.set_x(self.xmax) for v in vtx]
+                vtx = [v.replace_x(self.xmax) for v in vtx]
         return vtx
 
     def axis_len(self, axis):
